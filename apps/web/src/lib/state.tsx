@@ -18,16 +18,16 @@ import { generateUUIDv7, createIdempotencyKey } from '@platform/offline-sync';
 
 import { ROLE_DEFAULT_PERMISSIONS } from './permission-engine';
 
-// Default Fallback State
-const DEMO_PROFILE: BusinessProfile = {
-  id: 'demo-profile-1',
-  tenantId: 'tenant-spice-garden',
-  businessName: 'The Royal Biryani & Cafe',
-  phone: '+91 98765 43210',
-  email: 'owner@spicegarden.com',
-  address: '104 Brigade Road',
-  city: 'Bengaluru',
-  state: 'Karnataka',
+// Initial Empty State
+const INITIAL_PROFILE: BusinessProfile = {
+  id: '',
+  tenantId: '',
+  businessName: '',
+  phone: '',
+  email: '',
+  address: '',
+  city: '',
+  state: '',
   country: 'IN',
   currencyCode: 'INR',
   currencySymbol: '₹',
@@ -37,11 +37,11 @@ const DEMO_PROFILE: BusinessProfile = {
   updatedAt: new Date().toISOString(),
 };
 
-const DEMO_SESSION: UserSession = {
-  userId: 'usr-owner-01',
-  tenantId: 'tenant-spice-garden',
-  email: 'owner@spicegarden.com',
-  fullName: 'Rajesh Sharma',
+const INITIAL_SESSION: UserSession = {
+  userId: '',
+  tenantId: '',
+  email: '',
+  fullName: '',
   roleName: 'OWNER',
   permissions: ['*'],
   deviceId: 'dev-terminal-01',
@@ -98,12 +98,12 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [profile, setProfileState] = useState<BusinessProfile>(DEMO_PROFILE);
+  const [profile, setProfileState] = useState<BusinessProfile>(INITIAL_PROFILE);
   const [businessType, setBusinessTypeState] = useState<BusinessType>('RESTAURANT');
   const [enabledModules, setEnabledModules] = useState<ModuleToken[]>(
     getDefaultModulesForBusinessType('RESTAURANT')
   );
-  const [session, setSessionState] = useState<UserSession>(DEMO_SESSION);
+  const [session, setSessionState] = useState<UserSession>(INITIAL_SESSION);
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [devicePlatform] = useState<DevicePlatform>('DESKTOP');
   const [pendingSyncCount, setPendingSyncCount] = useState<number>(0);
@@ -150,8 +150,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const resetToDemo = () => {
-    setProfile(DEMO_PROFILE);
-    setSession(DEMO_SESSION);
+    setProfile(INITIAL_PROFILE);
+    setSession(INITIAL_SESSION);
     setBusinessType('RESTAURANT');
   };
 

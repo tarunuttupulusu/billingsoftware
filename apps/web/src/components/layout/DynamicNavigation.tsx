@@ -146,6 +146,27 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
   }
 
 
+  const handleLogout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('saas_active_session');
+      localStorage.removeItem('saas_active_profile');
+      localStorage.removeItem('saas_active_business_type');
+    }
+    setSession({
+      userId: '',
+      tenantId: '',
+      email: '',
+      fullName: '',
+      roleName: 'OWNER',
+      permissions: ['*'],
+      deviceId: 'dev-terminal-01',
+      isSuperAdmin: false,
+    });
+    router.push('/login');
+  };
+
+  const displayedBusinessName = profile.businessName || (session.fullName ? `${session.fullName}'s Store` : 'Restaurant Portal');
+
   const handleDevSwitchRole = (role: string) => {
     const roleDefaultPerms = ROLE_DEFAULT_PERMISSIONS[role] || [];
     const roleNames: Record<string, string> = {
@@ -207,7 +228,7 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
             {!sidebarCollapsed && (
               <div className="truncate">
                 <span className="font-semibold text-[15px] text-heading truncate block leading-tight">
-                  {profile.businessName || 'Restaurant Portal'}
+                  {displayedBusinessName}
                 </span>
                 <span className="text-[11px] text-muted font-medium capitalize">
                   {businessType.toLowerCase().replace('_', ' ')}
@@ -305,7 +326,7 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
                       {session.roleName}
                     </span>
                     <span className="text-[11px] text-muted truncate">
-                      {profile.businessName || 'Restaurant'}
+                      {displayedBusinessName}
                     </span>
                   </div>
                 </div>
@@ -349,13 +370,14 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
                   <Key className="w-4 h-4 stroke-[1.8]" />
                 </button>
 
-                <Link
-                  href="/login"
+                <button
+                  type="button"
+                  onClick={handleLogout}
                   className="p-1.5 rounded-lg text-placeholder hover:text-danger hover:bg-danger-bg transition"
                   title="Logout"
                 >
                   <LogOut className="w-4 h-4 stroke-[1.8]" />
-                </Link>
+                </button>
               </div>
             </div>
           ) : (
