@@ -59,29 +59,34 @@ export default function DashboardPage() {
     isOnline,
     tables,
     activeOrders,
-    session,
+    stats,
+    isLoadingData,
   } = useApp();
 
   const occupiedTables = tables.filter((t) => t.status === 'OCCUPIED' || t.status === 'BILLING');
   const availableTables = tables.filter((t) => t.status === 'AVAILABLE');
+  const completedOrders = activeOrders.filter((o) => o.status === 'COMPLETED' || o.status === 'BILLED');
+
+  const currencySymbol = profile.currencySymbol || '₹';
+  const totalRevenue = stats?.totalRevenue || (completedOrders.reduce((acc, o) => acc + (o.grandTotal || 0), 0) / 100);
 
   const businessTypes: Array<{ type: BusinessType; title: string; desc: string; icon: string }> = [
     {
       type: 'RESTAURANT',
       title: 'Full Dine-In Restaurant',
-      desc: '20 Tables, Waiters, Kitchen Display, KOT, Split Bills',
+      desc: 'Tables, Waiters, Kitchen Display, KOT, Split Bills',
       icon: '🍽️',
     },
     {
       type: 'BAKERY',
       title: 'Counter Bakery & Patisserie',
-      desc: 'No Tables, Quick Touch Checkout, Product Inventory',
+      desc: 'Quick Touch Checkout, Product Inventory, Fresh Bakes',
       icon: '🥐',
     },
     {
       type: 'CLOUD_KITCHEN',
       title: 'Delivery Cloud Kitchen',
-      desc: 'No Dine-In, Multi-Station KDS, Delivery Dispatch',
+      desc: 'Multi-Station KDS, Delivery Dispatch, Pack Timers',
       icon: '🛵',
     },
     {
@@ -98,16 +103,33 @@ export default function DashboardPage() {
     },
   ];
 
+  const filteredOrders = activeOrders.filter((o) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      o.orderNumber?.toLowerCase().includes(q) ||
+      o.tableName?.toLowerCase().includes(q) ||
+      o.createdByWorkerName?.toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div className="p-8 sm:p-10 max-w-[1400px] mx-auto space-y-8 font-sans">
       {/* TOP HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-borderLight">
         <div>
-          <h1 className="text-[28px] sm:text-[32px] font-semibold text-heading tracking-tight leading-tight">
-            Restaurant Dashboard
-          </h1>
+          <div className="flex items-center space-x-2">
+            <h1 className="text-[28px] sm:text-[32px] font-semibold text-heading tracking-tight leading-tight">
+              {profile.businessName || 'Restaurant Dashboard'}
+            </h1>
+            {isLoadingData && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-primary-light text-primary font-medium animate-pulse">
+                Syncing DB...
+              </span>
+            )}
+          </div>
           <p className="text-[14px] text-secondary mt-1">
-            Real-time overview of your operations, live orders, active tables, and sales performance
+            Real-time live database overview of your operations, orders, active tables, and sales.
           </p>
         </div>
 
@@ -123,14 +145,16 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 4 STAT CARDS PER SPECIFICATION */}
+      {/* 4 DYNAMIC STAT CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Today's Revenue */}
         <div className="stat-card">
-          <div className="text-[14px] text-secondary font-medium">Today's Revenue</div>
-          <div className="text-[28px] font-semibold text-heading mt-2 leading-none">₹42,850</div>
+          <div className="text-[14px] text-secondary font-medium">Revenue</div>
+          <div className="text-[28px] font-semibold text-heading mt-2 leading-none">
+            {currencySymbol}{totalRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
           <div className="text-[12px] text-success mt-1.5 flex items-center space-x-1 font-medium">
-            <span>↑ 18.2% vs yesterday</span>
+            <span>Live from Database</span>
           </div>
         </div>
 
@@ -138,9 +162,11 @@ export default function DashboardPage() {
         <div className="stat-card">
           <div className="text-[14px] text-secondary font-medium">Active Orders</div>
           <div className="text-[28px] font-semibold text-primary mt-2 leading-none">
-            {activeOrders.length > 0 ? activeOrders.length : 3}
+            {activeOrders.length}
           </div>
-          <div className="text-[12px] text-muted mt-1.5 font-medium">Avg prep time: 14 mins</div>
+          <div className="text-[12px] text-muted mt-1.5 font-medium">
+            {activeOrders.length === 0 ? 'No active orders' : `${activeOrders.length} in preparation`}
+          </div>
         </div>
 
         {/* Card 3: Table Occupancy */}
@@ -150,19 +176,23 @@ export default function DashboardPage() {
             {occupiedTables.length} / {tables.length}
           </div>
           <div className="text-[12px] text-secondary mt-1.5 font-medium">
-            {Math.round((occupiedTables.length / tables.length) * 100)}% Capacity Utilized
+            {tables.length > 0
+              ? `${Math.round((occupiedTables.length / tables.length) * 100)}% Capacity Utilized`
+              : 'No tables configured'}
           </div>
         </div>
 
         {/* Card 4: Completed Bills */}
         <div className="stat-card">
           <div className="text-[14px] text-secondary font-medium">Completed Bills</div>
-          <div className="text-[28px] font-semibold text-info mt-2 leading-none">58</div>
-          <div className="text-[12px] text-muted mt-1.5 font-medium">100% Synced to Postgres</div>
+          <div className="text-[28px] font-semibold text-info mt-2 leading-none">
+            {completedOrders.length}
+          </div>
+          <div className="text-[12px] text-muted mt-1.5 font-medium">PostgreSQL Synced</div>
         </div>
       </div>
 
-      {/* CHILDREN SUB-TABS (Section 01: Dashboard Children) */}
+      {/* CHILDREN SUB-TABS */}
       <div className="flex items-center space-x-1.5 overflow-x-auto bg-surface border border-border p-1 rounded-xl">
         {DASHBOARD_TABS.map((tab) => (
           <button
@@ -179,12 +209,12 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* SEARCH BAR PER SPECIFICATION */}
+      {/* SEARCH BAR */}
       <div className="relative max-w-md">
         <Search className="w-4 h-4 text-placeholder absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
         <input
           type="text"
-          placeholder="Search active orders, tables, dishes, or invoices..."
+          placeholder="Search live orders, tables, or staff..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="search-input w-full"
@@ -206,46 +236,49 @@ export default function DashboardPage() {
               </Link>
             </div>
 
-            <div className="divide-y divide-borderLight text-xs">
-              <div className="py-3 flex items-center justify-between">
-                <div>
-                  <div className="font-semibold text-heading text-sm">Table 5 (ORD-1042)</div>
-                  <div className="text-muted">2x Chicken Biryani, 1x Coke • Ramesh (Waiter)</div>
-                </div>
-                <div className="text-right">
-                  <div className="font-semibold text-heading text-sm">₹680.00</div>
-                  <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-warning-bg text-warning">
-                    Preparing (11m)
-                  </span>
-                </div>
+            {filteredOrders.length > 0 ? (
+              <div className="divide-y divide-borderLight text-xs">
+                {filteredOrders.slice(0, 5).map((ord) => (
+                  <div key={ord.id} className="py-3 flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold text-heading text-sm">
+                        {ord.tableName ? `${ord.tableName}` : 'Counter Takeaway'} ({ord.orderNumber})
+                      </div>
+                      <div className="text-muted">
+                        {ord.items && ord.items.length > 0
+                          ? ord.items.map((i: any) => `${i.quantity}x ${i.name}`).join(', ')
+                          : 'Items being added'} • {ord.createdByWorkerName || 'Staff'}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold text-heading text-sm">
+                        {currencySymbol}{(Number(ord.grandTotal || 0) / 100).toFixed(2)}
+                      </div>
+                      <span
+                        className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                          ord.status === 'COMPLETED'
+                            ? 'bg-success-bg text-success'
+                            : ord.status === 'READY'
+                            ? 'bg-info-bg text-info'
+                            : 'bg-warning-bg text-warning'
+                        }`}
+                      >
+                        {ord.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
-
-              <div className="py-3 flex items-center justify-between">
-                <div>
-                  <div className="font-semibold text-heading text-sm">Table 2 (ORD-1041)</div>
-                  <div className="text-muted">1x Butter Chicken, 3x Garlic Naan • Rohan (Waiter)</div>
-                </div>
-                <div className="text-right">
-                  <div className="font-semibold text-heading text-sm">₹565.00</div>
-                  <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-info-bg text-info">
-                    Served (Table Seated)
-                  </span>
-                </div>
+            ) : (
+              <div className="py-12 text-center space-y-3">
+                <ShoppingBag className="w-10 h-10 text-placeholder mx-auto" />
+                <p className="text-sm text-secondary">No active orders in this restaurant yet.</p>
+                <Link href="/pos" className="btn-primary text-xs py-1.5 px-4 inline-flex items-center space-x-1">
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Create First Order</span>
+                </Link>
               </div>
-
-              <div className="py-3 flex items-center justify-between">
-                <div>
-                  <div className="font-semibold text-heading text-sm">Counter 1 (ORD-1040)</div>
-                  <div className="text-muted">Takeaway Pack • 1x Mutton Biryani</div>
-                </div>
-                <div className="text-right">
-                  <div className="font-semibold text-heading text-sm">₹420.00</div>
-                  <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-success-bg text-success">
-                    Ready for Pickup
-                  </span>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Quick Actions Card */}
@@ -302,24 +335,37 @@ export default function DashboardPage() {
 
       {/* TAB CONTENT: Active Tables */}
       {activeTab === 'tables' && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          {tables.map((t) => (
-            <div key={t.id} className="card text-center p-4 space-y-2">
-              <span className="text-xs font-semibold uppercase text-muted">Table #{t.tableNumber}</span>
-              <div className="text-xl font-bold text-heading">{t.tableName}</div>
-              <span
-                className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
-                  t.status === 'OCCUPIED'
-                    ? 'bg-warning-bg text-warning'
-                    : t.status === 'BILLING'
-                    ? 'bg-info-bg text-info'
-                    : 'bg-success-bg text-success'
-                }`}
-              >
-                {t.status}
-              </span>
+        <div className="space-y-4">
+          {tables.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+              {tables.map((t) => (
+                <div key={t.id} className="card text-center p-4 space-y-2">
+                  <span className="text-xs font-semibold uppercase text-muted">Table #{t.tableNumber}</span>
+                  <div className="text-xl font-bold text-heading">{t.tableName}</div>
+                  <span
+                    className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      t.status === 'OCCUPIED'
+                        ? 'bg-warning-bg text-warning'
+                        : t.status === 'BILLING'
+                        ? 'bg-info-bg text-info'
+                        : 'bg-success-bg text-success'
+                    }`}
+                  >
+                    {t.status}
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
+          ) : (
+            <div className="card text-center p-12 space-y-3">
+              <LayoutGrid className="w-10 h-10 text-placeholder mx-auto" />
+              <p className="text-sm text-secondary">No tables configured for this restaurant yet.</p>
+              <Link href="/tables" className="btn-primary text-xs py-1.5 px-4 inline-flex items-center space-x-1">
+                <Plus className="w-3.5 h-3.5" />
+                <span>Configure Tables</span>
+              </Link>
+            </div>
+          )}
         </div>
       )}
 
@@ -330,7 +376,7 @@ export default function DashboardPage() {
             Business Profile & Dynamic Module Configuration
           </h2>
           <p className="text-[14px] text-secondary mt-0.5">
-            Switch business profiles to dynamically regenerate the 18 sections, sidebar items, and operational screens.
+            Switch business profiles to dynamically regenerate navigation, modules, and operational views.
           </p>
         </div>
 

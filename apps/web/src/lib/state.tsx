@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import {
   BusinessType,
   BusinessProfile,
@@ -18,7 +18,7 @@ import { generateUUIDv7, createIdempotencyKey } from '@platform/offline-sync';
 
 import { ROLE_DEFAULT_PERMISSIONS } from './permission-engine';
 
-// Default Demo State for Spice Garden
+// Default Fallback State
 const DEMO_PROFILE: BusinessProfile = {
   id: 'demo-profile-1',
   tenantId: 'tenant-spice-garden',
@@ -48,34 +48,6 @@ const DEMO_SESSION: UserSession = {
   isSuperAdmin: false,
 };
 
-const DEMO_TABLES: FloorTable[] = [
-  { id: 't1', tenantId: 'tenant-spice-garden', tableNumber: '1', tableName: 'Table 1', capacity: 4, status: 'AVAILABLE', createdAt: '', updatedAt: '' },
-  { id: 't2', tenantId: 'tenant-spice-garden', tableNumber: '2', tableName: 'Table 2', capacity: 2, status: 'OCCUPIED', activeOrderTotal: 84000, currentGuests: 2, createdAt: '', updatedAt: '' },
-  { id: 't3', tenantId: 'tenant-spice-garden', tableNumber: '3', tableName: 'Table 3', capacity: 6, status: 'BILLING', activeOrderTotal: 156000, currentGuests: 4, createdAt: '', updatedAt: '' },
-  { id: 't4', tenantId: 'tenant-spice-garden', tableNumber: '4', tableName: 'Table 4', capacity: 4, status: 'AVAILABLE', createdAt: '', updatedAt: '' },
-  { id: 't5', tenantId: 'tenant-spice-garden', tableNumber: '5', tableName: 'VIP 1', capacity: 8, status: 'RESERVED', createdAt: '', updatedAt: '' },
-  { id: 't6', tenantId: 'tenant-spice-garden', tableNumber: '6', tableName: 'Terrace 1', capacity: 4, status: 'AVAILABLE', createdAt: '', updatedAt: '' },
-];
-
-const DEMO_CATEGORIES: Category[] = [
-  { id: 'c1', tenantId: 'tenant-spice-garden', name: 'Biryani Specials', sortOrder: 1, isActive: true },
-  { id: 'c2', tenantId: 'tenant-spice-garden', name: 'Starters & Tandoor', sortOrder: 2, isActive: true },
-  { id: 'c3', tenantId: 'tenant-spice-garden', name: 'Curries & Breads', sortOrder: 3, isActive: true },
-  { id: 'c4', tenantId: 'tenant-spice-garden', name: 'Beverages & Desserts', sortOrder: 4, isActive: true },
-];
-
-const DEMO_MENU_ITEMS: MenuItem[] = [
-  { id: 'm1', tenantId: 'tenant-spice-garden', categoryId: 'c1', name: 'Hyderabadi Chicken Dum Biryani', basePrice: 32000, taxRatePercent: 5, foodType: 'NON_VEG', isAvailable: true, createdAt: '', updatedAt: '' },
-  { id: 'm2', tenantId: 'tenant-spice-garden', categoryId: 'c1', name: 'Mutton Ghee Roast Biryani', basePrice: 42000, taxRatePercent: 5, foodType: 'NON_VEG', isAvailable: true, createdAt: '', updatedAt: '' },
-  { id: 'm3', tenantId: 'tenant-spice-garden', categoryId: 'c1', name: 'Paneer Tikka Biryani', basePrice: 28000, taxRatePercent: 5, foodType: 'VEG', isAvailable: true, createdAt: '', updatedAt: '' },
-  { id: 'm4', tenantId: 'tenant-spice-garden', categoryId: 'c2', name: 'Chicken Tikka Kebab (6 pcs)', basePrice: 29000, taxRatePercent: 5, foodType: 'NON_VEG', isAvailable: true, createdAt: '', updatedAt: '' },
-  { id: 'm5', tenantId: 'tenant-spice-garden', categoryId: 'c2', name: 'Crispy Corn Salt & Pepper', basePrice: 22000, taxRatePercent: 5, foodType: 'VEG', isAvailable: true, createdAt: '', updatedAt: '' },
-  { id: 'm6', tenantId: 'tenant-spice-garden', categoryId: 'c3', name: 'Butter Chicken Masala', basePrice: 34000, taxRatePercent: 5, foodType: 'NON_VEG', isAvailable: true, createdAt: '', updatedAt: '' },
-  { id: 'm7', tenantId: 'tenant-spice-garden', categoryId: 'c3', name: 'Butter Garlic Naan', basePrice: 7500, taxRatePercent: 5, foodType: 'VEG', isAvailable: true, createdAt: '', updatedAt: '' },
-  { id: 'm8', tenantId: 'tenant-spice-garden', categoryId: 'c4', name: 'Gulab Jamun with Rabdi', basePrice: 14000, taxRatePercent: 5, foodType: 'VEG', isAvailable: true, createdAt: '', updatedAt: '' },
-  { id: 'm9', tenantId: 'tenant-spice-garden', categoryId: 'c4', name: 'Masala Chai', basePrice: 4000, taxRatePercent: 5, foodType: 'BEVERAGE', isAvailable: true, createdAt: '', updatedAt: '' },
-];
-
 interface AppContextType {
   profile: BusinessProfile;
   setProfile: (p: BusinessProfile) => void;
@@ -99,6 +71,23 @@ interface AppContextType {
   menuItems: MenuItem[];
   setMenuItems: React.Dispatch<React.SetStateAction<MenuItem[]>>;
   activeOrders: Order[];
+  setActiveOrders: React.Dispatch<React.SetStateAction<Order[]>>;
+  customers: any[];
+  setCustomers: React.Dispatch<React.SetStateAction<any[]>>;
+  expenses: any[];
+  setExpenses: React.Dispatch<React.SetStateAction<any[]>>;
+  stats: {
+    totalRevenue: number;
+    totalOrders: number;
+    activeOrders: number;
+    occupiedTables: number;
+    totalTables: number;
+    totalMenuItems: number;
+    totalCustomers: number;
+    totalStaff: number;
+  };
+  isLoadingData: boolean;
+  refreshTenantData: () => Promise<void>;
   createOrderOffline: (orderData: Partial<Order>) => Promise<Order>;
   updateTableStatus: (tableId: string, status: FloorTable['status']) => void;
   pendingSyncCount: number;
@@ -119,10 +108,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [devicePlatform] = useState<DevicePlatform>('DESKTOP');
   const [pendingSyncCount, setPendingSyncCount] = useState<number>(0);
 
-  const [tables, setTables] = useState<FloorTable[]>(DEMO_TABLES);
-  const [categories, setCategories] = useState<Category[]>(DEMO_CATEGORIES);
-  const [menuItems, setMenuItems] = useState<MenuItem[]>(DEMO_MENU_ITEMS);
+  const [tables, setTables] = useState<FloorTable[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [activeOrders, setActiveOrders] = useState<Order[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    totalRevenue: 0,
+    totalOrders: 0,
+    activeOrders: 0,
+    occupiedTables: 0,
+    totalTables: 0,
+    totalMenuItems: 0,
+    totalCustomers: 0,
+    totalStaff: 0,
+  });
+  const [isLoadingData, setIsLoadingData] = useState<boolean>(false);
 
   // Persistent storage wrappers
   const setProfile = (newProfile: BusinessProfile) => {
@@ -151,11 +153,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setProfile(DEMO_PROFILE);
     setSession(DEMO_SESSION);
     setBusinessType('RESTAURANT');
-    setTables(DEMO_TABLES);
-    setCategories(DEMO_CATEGORIES);
-    setMenuItems(DEMO_MENU_ITEMS);
-    setActiveOrders([]);
   };
+
+  // Dynamic Database Fetcher
+  const refreshTenantData = useCallback(async () => {
+    const activeTenantId = profile.tenantId || session.tenantId || 'tenant-spice-garden';
+    setIsLoadingData(true);
+    try {
+      const res = await fetch(`/api/tenant/data?tenantId=${activeTenantId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.tables) setTables(data.tables);
+        if (data.categories) setCategories(data.categories);
+        if (data.menuItems) setMenuItems(data.menuItems);
+        if (data.orders) setActiveOrders(data.orders);
+        if (data.customers) setCustomers(data.customers);
+        if (data.expenses) setExpenses(data.expenses);
+        if (data.stats) setStats(data.stats);
+        if (data.profile) {
+          setProfileState(data.profile);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading dynamic database data:', err);
+    } finally {
+      setIsLoadingData(false);
+    }
+  }, [profile.tenantId, session.tenantId]);
 
   // Hydrate session & profile on initial browser load
   useEffect(() => {
@@ -182,42 +206,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Isolate tenant floor tables and menu when switching tenant
+  // Whenever tenantId changes, dynamically fetch data from the database
   useEffect(() => {
-    if (!profile.tenantId || profile.tenantId === 'tenant-spice-garden') {
-      setTables(DEMO_TABLES);
-      setCategories(DEMO_CATEGORIES);
-      setMenuItems(DEMO_MENU_ITEMS);
-    } else {
-      // Clean isolated store for newly registered accounts
-      const customTablesKey = `saas_tables_${profile.tenantId}`;
-      const savedTables = typeof window !== 'undefined' ? localStorage.getItem(customTablesKey) : null;
-      if (savedTables) {
-        try {
-          setTables(JSON.parse(savedTables));
-        } catch {
-          setTables([]);
-        }
-      } else {
-        // Starter initial clean tables for new restaurant
-        setTables([
-          { id: `t1-${profile.tenantId}`, tenantId: profile.tenantId, tableNumber: '1', tableName: 'Table 1', capacity: 4, status: 'AVAILABLE', createdAt: '', updatedAt: '' },
-          { id: `t2-${profile.tenantId}`, tenantId: profile.tenantId, tableNumber: '2', tableName: 'Table 2', capacity: 2, status: 'AVAILABLE', createdAt: '', updatedAt: '' },
-          { id: `t3-${profile.tenantId}`, tenantId: profile.tenantId, tableNumber: '3', tableName: 'Table 3', capacity: 6, status: 'AVAILABLE', createdAt: '', updatedAt: '' },
-        ]);
-      }
-
-      setCategories([
-        { id: `c1-${profile.tenantId}`, tenantId: profile.tenantId, name: 'Main Menu', sortOrder: 1, isActive: true },
-        { id: `c2-${profile.tenantId}`, tenantId: profile.tenantId, name: 'Beverages', sortOrder: 2, isActive: true },
-      ]);
-
-      setMenuItems([
-        { id: `m1-${profile.tenantId}`, tenantId: profile.tenantId, categoryId: `c1-${profile.tenantId}`, name: 'Special Dish', basePrice: 25000, taxRatePercent: 5, foodType: 'NON_VEG', isAvailable: true, createdAt: '', updatedAt: '' },
-        { id: `m2-${profile.tenantId}`, tenantId: profile.tenantId, categoryId: `c2-${profile.tenantId}`, name: 'Fresh Juice', basePrice: 8000, taxRatePercent: 5, foodType: 'BEVERAGE', isAvailable: true, createdAt: '', updatedAt: '' },
-      ]);
-    }
-  }, [profile.tenantId]);
+    refreshTenantData();
+  }, [profile.tenantId, session.tenantId, refreshTenantData]);
 
   // Listen to browser network changes
   useEffect(() => {
@@ -264,7 +256,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
   };
 
-  // Transactional Offline Order Creation
+  // Transactional Offline/Online Order Creation
   const createOrderOffline = async (orderData: Partial<Order>): Promise<Order> => {
     const orderId = generateUUIDv7();
     const orderNumber = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -296,11 +288,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // 1. Commit to in-memory state
     setActiveOrders((prev) => [newOrder, ...prev]);
 
-    // 2. Commit to persistent IndexedDB
+    // 2. Post to Database if online
+    if (isOnline) {
+      try {
+        await fetch('/api/tenant/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenantId: profile.tenantId,
+            orderType: newOrder.orderType,
+            tableId: newOrder.tableId,
+            tableName: newOrder.tableName,
+            guestCount: newOrder.guestCount,
+            subtotal: newOrder.subtotal,
+            taxAmount: newOrder.taxAmount,
+            grandTotal: newOrder.grandTotal,
+            items: newOrder.items,
+            createdByWorkerId: session.userId,
+            createdByWorkerName: session.fullName,
+          }),
+        });
+      } catch (err) {
+        console.warn('Could not post order immediately to cloud API, queued locally:', err);
+      }
+    }
+
+    // 3. Commit to persistent IndexedDB
     try {
       await offlineDb.orders.add(newOrder);
 
-      // 3. Push to offline sync queue with deterministic idempotency key
       const idempotencyKey = createIdempotencyKey({
         deviceId: session.deviceId || 'local',
         tenantId: profile.tenantId,
@@ -381,6 +397,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         menuItems,
         setMenuItems,
         activeOrders,
+        setActiveOrders,
+        customers,
+        setCustomers,
+        expenses,
+        setExpenses,
+        stats,
+        isLoadingData,
+        refreshTenantData,
         createOrderOffline,
         updateTableStatus,
         pendingSyncCount,
