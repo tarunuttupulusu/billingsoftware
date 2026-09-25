@@ -18,7 +18,7 @@ import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { session, setSession } = useApp();
+  const { session, setSession, setProfile, setBusinessType } = useApp();
 
   const [email, setEmail] = useState('owner@spicegarden.com');
   const [password, setPassword] = useState('••••••••••••');
@@ -85,9 +85,36 @@ export default function LoginPage() {
         return;
       }
 
-      // Update real session from database
+      // Update real session, profile, and business type from database
+      if (data.profile) {
+        setProfile(data.profile);
+      } else if (data.tenant) {
+        setProfile({
+          id: `prof-${data.tenant.id}`,
+          tenantId: data.tenant.id,
+          businessName: data.tenant.name,
+          phone: '',
+          email: data.user.email,
+          city: 'Bengaluru',
+          state: 'Karnataka',
+          address: '',
+          country: 'IN',
+          currencyCode: 'INR',
+          currencySymbol: '₹',
+          timezone: 'Asia/Kolkata',
+          onboardingCompleted: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      }
+
+      if (data.tenant?.businessType) {
+        setBusinessType(data.tenant.businessType);
+      }
+
       setSession({
         ...session,
+        tenantId: data.user.tenantId || data.tenant?.id || session.tenantId,
         fullName: data.user.fullName,
         email: data.user.email,
         roleName: data.user.roleType,

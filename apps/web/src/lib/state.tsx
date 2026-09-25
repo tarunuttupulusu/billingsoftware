@@ -18,13 +18,13 @@ import { generateUUIDv7, createIdempotencyKey } from '@platform/offline-sync';
 
 import { ROLE_DEFAULT_PERMISSIONS } from './permission-engine';
 
-// Default Demo / Initial State
-const DEFAULT_PROFILE: BusinessProfile = {
+// Default Demo State for Spice Garden
+const DEMO_PROFILE: BusinessProfile = {
   id: 'demo-profile-1',
   tenantId: 'tenant-spice-garden',
   businessName: 'The Royal Biryani & Cafe',
   phone: '+91 98765 43210',
-  email: 'owner@royalbiryani.pos',
+  email: 'owner@spicegarden.com',
   address: '104 Brigade Road',
   city: 'Bengaluru',
   state: 'Karnataka',
@@ -37,7 +37,7 @@ const DEFAULT_PROFILE: BusinessProfile = {
   updatedAt: new Date().toISOString(),
 };
 
-const DEFAULT_SESSION: UserSession = {
+const DEMO_SESSION: UserSession = {
   userId: 'usr-owner-01',
   tenantId: 'tenant-spice-garden',
   email: 'owner@spicegarden.com',
@@ -47,6 +47,34 @@ const DEFAULT_SESSION: UserSession = {
   deviceId: 'dev-terminal-01',
   isSuperAdmin: false,
 };
+
+const DEMO_TABLES: FloorTable[] = [
+  { id: 't1', tenantId: 'tenant-spice-garden', tableNumber: '1', tableName: 'Table 1', capacity: 4, status: 'AVAILABLE', createdAt: '', updatedAt: '' },
+  { id: 't2', tenantId: 'tenant-spice-garden', tableNumber: '2', tableName: 'Table 2', capacity: 2, status: 'OCCUPIED', activeOrderTotal: 84000, currentGuests: 2, createdAt: '', updatedAt: '' },
+  { id: 't3', tenantId: 'tenant-spice-garden', tableNumber: '3', tableName: 'Table 3', capacity: 6, status: 'BILLING', activeOrderTotal: 156000, currentGuests: 4, createdAt: '', updatedAt: '' },
+  { id: 't4', tenantId: 'tenant-spice-garden', tableNumber: '4', tableName: 'Table 4', capacity: 4, status: 'AVAILABLE', createdAt: '', updatedAt: '' },
+  { id: 't5', tenantId: 'tenant-spice-garden', tableNumber: '5', tableName: 'VIP 1', capacity: 8, status: 'RESERVED', createdAt: '', updatedAt: '' },
+  { id: 't6', tenantId: 'tenant-spice-garden', tableNumber: '6', tableName: 'Terrace 1', capacity: 4, status: 'AVAILABLE', createdAt: '', updatedAt: '' },
+];
+
+const DEMO_CATEGORIES: Category[] = [
+  { id: 'c1', tenantId: 'tenant-spice-garden', name: 'Biryani Specials', sortOrder: 1, isActive: true },
+  { id: 'c2', tenantId: 'tenant-spice-garden', name: 'Starters & Tandoor', sortOrder: 2, isActive: true },
+  { id: 'c3', tenantId: 'tenant-spice-garden', name: 'Curries & Breads', sortOrder: 3, isActive: true },
+  { id: 'c4', tenantId: 'tenant-spice-garden', name: 'Beverages & Desserts', sortOrder: 4, isActive: true },
+];
+
+const DEMO_MENU_ITEMS: MenuItem[] = [
+  { id: 'm1', tenantId: 'tenant-spice-garden', categoryId: 'c1', name: 'Hyderabadi Chicken Dum Biryani', basePrice: 32000, taxRatePercent: 5, foodType: 'NON_VEG', isAvailable: true, createdAt: '', updatedAt: '' },
+  { id: 'm2', tenantId: 'tenant-spice-garden', categoryId: 'c1', name: 'Mutton Ghee Roast Biryani', basePrice: 42000, taxRatePercent: 5, foodType: 'NON_VEG', isAvailable: true, createdAt: '', updatedAt: '' },
+  { id: 'm3', tenantId: 'tenant-spice-garden', categoryId: 'c1', name: 'Paneer Tikka Biryani', basePrice: 28000, taxRatePercent: 5, foodType: 'VEG', isAvailable: true, createdAt: '', updatedAt: '' },
+  { id: 'm4', tenantId: 'tenant-spice-garden', categoryId: 'c2', name: 'Chicken Tikka Kebab (6 pcs)', basePrice: 29000, taxRatePercent: 5, foodType: 'NON_VEG', isAvailable: true, createdAt: '', updatedAt: '' },
+  { id: 'm5', tenantId: 'tenant-spice-garden', categoryId: 'c2', name: 'Crispy Corn Salt & Pepper', basePrice: 22000, taxRatePercent: 5, foodType: 'VEG', isAvailable: true, createdAt: '', updatedAt: '' },
+  { id: 'm6', tenantId: 'tenant-spice-garden', categoryId: 'c3', name: 'Butter Chicken Masala', basePrice: 34000, taxRatePercent: 5, foodType: 'NON_VEG', isAvailable: true, createdAt: '', updatedAt: '' },
+  { id: 'm7', tenantId: 'tenant-spice-garden', categoryId: 'c3', name: 'Butter Garlic Naan', basePrice: 7500, taxRatePercent: 5, foodType: 'VEG', isAvailable: true, createdAt: '', updatedAt: '' },
+  { id: 'm8', tenantId: 'tenant-spice-garden', categoryId: 'c4', name: 'Gulab Jamun with Rabdi', basePrice: 14000, taxRatePercent: 5, foodType: 'VEG', isAvailable: true, createdAt: '', updatedAt: '' },
+  { id: 'm9', tenantId: 'tenant-spice-garden', categoryId: 'c4', name: 'Masala Chai', basePrice: 4000, taxRatePercent: 5, foodType: 'BEVERAGE', isAvailable: true, createdAt: '', updatedAt: '' },
+];
 
 interface AppContextType {
   profile: BusinessProfile;
@@ -67,57 +95,129 @@ interface AppContextType {
   tables: FloorTable[];
   setTables: React.Dispatch<React.SetStateAction<FloorTable[]>>;
   categories: Category[];
+  setCategories: React.Dispatch<React.SetStateAction<Category[]>>;
   menuItems: MenuItem[];
+  setMenuItems: React.Dispatch<React.SetStateAction<MenuItem[]>>;
   activeOrders: Order[];
   createOrderOffline: (orderData: Partial<Order>) => Promise<Order>;
   updateTableStatus: (tableId: string, status: FloorTable['status']) => void;
   pendingSyncCount: number;
   triggerSync: () => Promise<void>;
+  resetToDemo: () => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [profile, setProfile] = useState<BusinessProfile>(DEFAULT_PROFILE);
-  const [businessType, setBusinessType] = useState<BusinessType>('RESTAURANT');
+  const [profile, setProfileState] = useState<BusinessProfile>(DEMO_PROFILE);
+  const [businessType, setBusinessTypeState] = useState<BusinessType>('RESTAURANT');
   const [enabledModules, setEnabledModules] = useState<ModuleToken[]>(
     getDefaultModulesForBusinessType('RESTAURANT')
   );
-  const [session, setSession] = useState<UserSession>(DEFAULT_SESSION);
+  const [session, setSessionState] = useState<UserSession>(DEMO_SESSION);
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [devicePlatform] = useState<DevicePlatform>('DESKTOP');
   const [pendingSyncCount, setPendingSyncCount] = useState<number>(0);
 
-  // Seed Initial Demo Floor & Menu
-  const [tables, setTables] = useState<FloorTable[]>([
-    { id: 't1', tenantId: 'tenant-spice-garden', tableNumber: '1', tableName: 'Table 1', capacity: 4, status: 'AVAILABLE', createdAt: '', updatedAt: '' },
-    { id: 't2', tenantId: 'tenant-spice-garden', tableNumber: '2', tableName: 'Table 2', capacity: 2, status: 'OCCUPIED', activeOrderTotal: 84000, currentGuests: 2, createdAt: '', updatedAt: '' },
-    { id: 't3', tenantId: 'tenant-spice-garden', tableNumber: '3', tableName: 'Table 3', capacity: 6, status: 'BILLING', activeOrderTotal: 156000, currentGuests: 4, createdAt: '', updatedAt: '' },
-    { id: 't4', tenantId: 'tenant-spice-garden', tableNumber: '4', tableName: 'Table 4', capacity: 4, status: 'AVAILABLE', createdAt: '', updatedAt: '' },
-    { id: 't5', tenantId: 'tenant-spice-garden', tableNumber: '5', tableName: 'VIP 1', capacity: 8, status: 'RESERVED', createdAt: '', updatedAt: '' },
-    { id: 't6', tenantId: 'tenant-spice-garden', tableNumber: '6', tableName: 'Terrace 1', capacity: 4, status: 'AVAILABLE', createdAt: '', updatedAt: '' },
-  ]);
-
-  const [categories] = useState<Category[]>([
-    { id: 'c1', tenantId: 'tenant-spice-garden', name: 'Biryani Specials', sortOrder: 1, isActive: true },
-    { id: 'c2', tenantId: 'tenant-spice-garden', name: 'Starters & Tandoor', sortOrder: 2, isActive: true },
-    { id: 'c3', tenantId: 'tenant-spice-garden', name: 'Curries & Breads', sortOrder: 3, isActive: true },
-    { id: 'c4', tenantId: 'tenant-spice-garden', name: 'Beverages & Desserts', sortOrder: 4, isActive: true },
-  ]);
-
-  const [menuItems] = useState<MenuItem[]>([
-    { id: 'm1', tenantId: 'tenant-spice-garden', categoryId: 'c1', name: 'Hyderabadi Chicken Dum Biryani', basePrice: 32000, taxRatePercent: 5, foodType: 'NON_VEG', isAvailable: true, createdAt: '', updatedAt: '' },
-    { id: 'm2', tenantId: 'tenant-spice-garden', categoryId: 'c1', name: 'Mutton Ghee Roast Biryani', basePrice: 42000, taxRatePercent: 5, foodType: 'NON_VEG', isAvailable: true, createdAt: '', updatedAt: '' },
-    { id: 'm3', tenantId: 'tenant-spice-garden', categoryId: 'c1', name: 'Paneer Tikka Biryani', basePrice: 28000, taxRatePercent: 5, foodType: 'VEG', isAvailable: true, createdAt: '', updatedAt: '' },
-    { id: 'm4', tenantId: 'tenant-spice-garden', categoryId: 'c2', name: 'Chicken Tikka Kebab (6 pcs)', basePrice: 29000, taxRatePercent: 5, foodType: 'NON_VEG', isAvailable: true, createdAt: '', updatedAt: '' },
-    { id: 'm5', tenantId: 'tenant-spice-garden', categoryId: 'c2', name: 'Crispy Corn Salt & Pepper', basePrice: 22000, taxRatePercent: 5, foodType: 'VEG', isAvailable: true, createdAt: '', updatedAt: '' },
-    { id: 'm6', tenantId: 'tenant-spice-garden', categoryId: 'c3', name: 'Butter Chicken Masala', basePrice: 34000, taxRatePercent: 5, foodType: 'NON_VEG', isAvailable: true, createdAt: '', updatedAt: '' },
-    { id: 'm7', tenantId: 'tenant-spice-garden', categoryId: 'c3', name: 'Butter Garlic Naan', basePrice: 7500, taxRatePercent: 5, foodType: 'VEG', isAvailable: true, createdAt: '', updatedAt: '' },
-    { id: 'm8', tenantId: 'tenant-spice-garden', categoryId: 'c4', name: 'Gulab Jamun with Rabdi', basePrice: 14000, taxRatePercent: 5, foodType: 'VEG', isAvailable: true, createdAt: '', updatedAt: '' },
-    { id: 'm9', tenantId: 'tenant-spice-garden', categoryId: 'c4', name: 'Masala Chai', basePrice: 4000, taxRatePercent: 5, foodType: 'BEVERAGE', isAvailable: true, createdAt: '', updatedAt: '' },
-  ]);
-
+  const [tables, setTables] = useState<FloorTable[]>(DEMO_TABLES);
+  const [categories, setCategories] = useState<Category[]>(DEMO_CATEGORIES);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>(DEMO_MENU_ITEMS);
   const [activeOrders, setActiveOrders] = useState<Order[]>([]);
+
+  // Persistent storage wrappers
+  const setProfile = (newProfile: BusinessProfile) => {
+    setProfileState(newProfile);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('saas_active_profile', JSON.stringify(newProfile));
+    }
+  };
+
+  const setSession = (newSession: UserSession) => {
+    setSessionState(newSession);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('saas_active_session', JSON.stringify(newSession));
+    }
+  };
+
+  const setBusinessType = (newType: BusinessType) => {
+    setBusinessTypeState(newType);
+    setEnabledModules(getDefaultModulesForBusinessType(newType));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('saas_active_business_type', newType);
+    }
+  };
+
+  const resetToDemo = () => {
+    setProfile(DEMO_PROFILE);
+    setSession(DEMO_SESSION);
+    setBusinessType('RESTAURANT');
+    setTables(DEMO_TABLES);
+    setCategories(DEMO_CATEGORIES);
+    setMenuItems(DEMO_MENU_ITEMS);
+    setActiveOrders([]);
+  };
+
+  // Hydrate session & profile on initial browser load
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const savedProfile = localStorage.getItem('saas_active_profile');
+      const savedSession = localStorage.getItem('saas_active_session');
+      const savedBType = localStorage.getItem('saas_active_business_type');
+
+      if (savedProfile) {
+        const parsed = JSON.parse(savedProfile);
+        setProfileState(parsed);
+      }
+      if (savedSession) {
+        const parsed = JSON.parse(savedSession);
+        setSessionState(parsed);
+      }
+      if (savedBType) {
+        setBusinessTypeState(savedBType as BusinessType);
+        setEnabledModules(getDefaultModulesForBusinessType(savedBType as BusinessType));
+      }
+    } catch (e) {
+      console.error('Failed to hydrate local session:', e);
+    }
+  }, []);
+
+  // Isolate tenant floor tables and menu when switching tenant
+  useEffect(() => {
+    if (!profile.tenantId || profile.tenantId === 'tenant-spice-garden') {
+      setTables(DEMO_TABLES);
+      setCategories(DEMO_CATEGORIES);
+      setMenuItems(DEMO_MENU_ITEMS);
+    } else {
+      // Clean isolated store for newly registered accounts
+      const customTablesKey = `saas_tables_${profile.tenantId}`;
+      const savedTables = typeof window !== 'undefined' ? localStorage.getItem(customTablesKey) : null;
+      if (savedTables) {
+        try {
+          setTables(JSON.parse(savedTables));
+        } catch {
+          setTables([]);
+        }
+      } else {
+        // Starter initial clean tables for new restaurant
+        setTables([
+          { id: `t1-${profile.tenantId}`, tenantId: profile.tenantId, tableNumber: '1', tableName: 'Table 1', capacity: 4, status: 'AVAILABLE', createdAt: '', updatedAt: '' },
+          { id: `t2-${profile.tenantId}`, tenantId: profile.tenantId, tableNumber: '2', tableName: 'Table 2', capacity: 2, status: 'AVAILABLE', createdAt: '', updatedAt: '' },
+          { id: `t3-${profile.tenantId}`, tenantId: profile.tenantId, tableNumber: '3', tableName: 'Table 3', capacity: 6, status: 'AVAILABLE', createdAt: '', updatedAt: '' },
+        ]);
+      }
+
+      setCategories([
+        { id: `c1-${profile.tenantId}`, tenantId: profile.tenantId, name: 'Main Menu', sortOrder: 1, isActive: true },
+        { id: `c2-${profile.tenantId}`, tenantId: profile.tenantId, name: 'Beverages', sortOrder: 2, isActive: true },
+      ]);
+
+      setMenuItems([
+        { id: `m1-${profile.tenantId}`, tenantId: profile.tenantId, categoryId: `c1-${profile.tenantId}`, name: 'Special Dish', basePrice: 25000, taxRatePercent: 5, foodType: 'NON_VEG', isAvailable: true, createdAt: '', updatedAt: '' },
+        { id: `m2-${profile.tenantId}`, tenantId: profile.tenantId, categoryId: `c2-${profile.tenantId}`, name: 'Fresh Juice', basePrice: 8000, taxRatePercent: 5, foodType: 'BEVERAGE', isAvailable: true, createdAt: '', updatedAt: '' },
+      ]);
+    }
+  }, [profile.tenantId]);
 
   // Listen to browser network changes
   useEffect(() => {
@@ -277,12 +377,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         tables,
         setTables,
         categories,
+        setCategories,
         menuItems,
+        setMenuItems,
         activeOrders,
         createOrderOffline,
         updateTableStatus,
         pendingSyncCount,
         triggerSync,
+        resetToDemo,
       }}
     >
       {children}
