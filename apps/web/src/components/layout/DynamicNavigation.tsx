@@ -778,21 +778,17 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
                 Emulates backend session authentication for development testing:
               </p>
 
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-1 gap-1.5">
                 {[
-                  { id: 'OWNER', label: '👑 Owner (All)' },
-                  { id: 'RESTAURANT_ADMIN', label: '🛡️ Admin' },
-                  { id: 'MANAGER', label: '💼 Manager' },
-                  { id: 'CASHIER', label: '💵 Cashier' },
-                  { id: 'WAITER', label: '🍽️ Waiter' },
-                  { id: 'KITCHEN', label: '👨‍🍳 Kitchen' },
-                  { id: 'ACCOUNTANT', label: '📊 Accountant' },
+                  { id: 'OWNER', label: '👑 Owner (All Views)' },
+                  { id: 'WAITER', label: '🍽️ Waiter (Floor & POS)' },
+                  { id: 'KITCHEN', label: '👨‍🍳 Kitchen (KDS Queue)' },
                 ].map((r) => (
                   <button
                     key={r.id}
                     type="button"
                     onClick={() => handleDevSwitchRole(r.id)}
-                    className={`py-1.5 px-2 rounded-lg text-left font-medium transition ${
+                    className={`py-2 px-2.5 rounded-lg text-left font-medium transition ${
                       session.roleName === r.id
                         ? 'bg-primary text-white font-bold'
                         : 'bg-surfaceMuted text-heading hover:bg-borderLight'
