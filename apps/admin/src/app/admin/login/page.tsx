@@ -97,16 +97,29 @@ export default function SuperAdminLoginPage() {
           </div>
         </div>
 
-        {/* Link back to Restaurant Portal */}
-        <div className="mt-6 text-center text-xs text-muted">
-          Looking for restaurant portal?{' '}
-          <a
-            href="http://localhost:3000"
-            className="text-primary font-medium hover:underline inline-flex items-center space-x-1"
-          >
-            <span>Restaurant User Portal (Port 3000)</span>
-            <ExternalLink className="w-3 h-3 text-placeholder" />
-          </a>
+        {/* Link back to Restaurant User Portal */}
+        <div className="mt-6 text-center text-xs text-muted space-y-2">
+          <p>Looking for the restaurant user portal?</p>
+          <div className="flex flex-col space-y-1.5">
+            <a
+              href="https://billingsoftware-web.vercel.app/login"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary font-medium hover:underline inline-flex items-center justify-center space-x-1"
+            >
+              <span>🍽️ Restaurant User Login (Vercel)</span>
+              <ExternalLink className="w-3 h-3 text-placeholder" />
+            </a>
+            <a
+              href="https://billingsoftware-web.vercel.app/register"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary font-medium hover:underline inline-flex items-center justify-center space-x-1"
+            >
+              <span>📝 Create Restaurant Account</span>
+              <ExternalLink className="w-3 h-3 text-placeholder" />
+            </a>
+          </div>
         </div>
       </div>
     </div>
