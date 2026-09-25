@@ -120,7 +120,6 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
   });
 
   // ROUTE ACCESS GUARD (Backend & Layout Authorization check)
-  // Check if current route requires permissions the user does not have
   const matchedRouteEntry = Object.entries(ROUTE_PERMISSION_MAP).find(([route]) => {
     if (pathname === route) return true;
     if (route !== '/' && pathname.startsWith(`${route}/`)) return true;
@@ -131,6 +130,16 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
   const isAuthorizedForCurrentRoute = requiredPermission
     ? checkPermission(effectivePermissions, requiredPermission)
     : true;
+
+  // Check if unauthenticated and redirect to /login
+  React.useEffect(() => {
+    if (!isPublicPage) {
+      const savedSession = typeof window !== 'undefined' ? localStorage.getItem('saas_active_session') : null;
+      if (!savedSession && (!session?.userId || !session?.email)) {
+        router.push('/login');
+      }
+    }
+  }, [isPublicPage, session, router]);
 
   if (isPublicPage) {
     return <div className="min-h-screen w-full bg-background text-main overflow-x-hidden font-sans">{children}</div>;

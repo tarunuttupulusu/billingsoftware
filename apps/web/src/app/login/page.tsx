@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/lib/state';
@@ -26,6 +26,23 @@ export default function LoginPage() {
     'OWNER' | 'RESTAURANT_ADMIN' | 'MANAGER' | 'CASHIER' | 'WAITER' | 'KITCHEN' | 'ACCOUNTANT'
   >('OWNER');
   const [loading, setLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  // Auto-redirect if user already has an active authenticated session
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const savedSession = localStorage.getItem('saas_active_session');
+      if (savedSession) {
+        const parsed = JSON.parse(savedSession);
+        if (parsed?.userId && parsed?.email && parsed.userId !== 'usr-owner-01') {
+          router.push('/dashboard');
+        }
+      }
+    } catch {
+      // Ignore parse errors
+    }
+  }, [router]);
 
   const roleProfiles: Record<string, { name: string; email: string }> = {
     OWNER: { name: 'Rajesh Sharma (Owner)', email: 'owner@spicegarden.com' },
@@ -43,8 +60,6 @@ export default function LoginPage() {
     setSelectedRole(role);
     setEmail(roleProfiles[role].email);
   };
-
-  const [loginError, setLoginError] = useState<string | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,7 +186,7 @@ export default function LoginPage() {
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center mb-6">
         <Link href="/" className="inline-flex items-center space-x-2 text-xs font-semibold text-secondary hover:text-heading transition">
           <Store className="w-4 h-4 text-primary" />
-          <span>Restaurant SaaS Platform</span>
+          <span>Restaurant Platform</span>
         </Link>
         <h1 className="mt-3 text-[28px] font-semibold text-heading tracking-tight">Welcome Back</h1>
         <p className="mt-1 text-[14px] text-secondary">Sign in to your restaurant account</p>
@@ -254,6 +269,12 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {loginError && (
+              <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs">
+                {loginError}
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={loading}
@@ -306,17 +327,6 @@ export default function LoginPage() {
               Create Account
             </Link>
           </div>
-        </div>
-
-        {/* Super admin quick redirection link */}
-        <div className="mt-6 text-center text-xs text-muted">
-          Looking for SaaS Super Admin?{' '}
-          <a
-            href="http://localhost:3001/admin/login"
-            className="text-primary font-medium hover:underline"
-          >
-            Admin Portal (Port 3001) →
-          </a>
         </div>
       </div>
     </div>

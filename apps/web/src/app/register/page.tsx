@@ -20,7 +20,7 @@ import { supabase } from '@/lib/supabase';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { setProfile, setBusinessType } = useApp();
+  const { setProfile, setBusinessType, setSession } = useApp();
 
   const [step, setStep] = useState<1 | 2>(1);
 
@@ -106,7 +106,18 @@ export default function RegisterPage() {
         updatedAt: new Date().toISOString(),
       });
 
-      router.push('/pending-approval');
+      setSession({
+        userId: data.userId || `user-${data.tenantId}`,
+        tenantId: data.tenantId,
+        email,
+        fullName,
+        roleName: 'OWNER',
+        permissions: ['*'],
+        deviceId: 'dev-terminal-01',
+        isSuperAdmin: false,
+      });
+
+      router.push('/dashboard');
     } catch (err: any) {
       console.error('Registration error:', err);
       setErrorMsg(err.message || 'Registration failed. Please try again.');
