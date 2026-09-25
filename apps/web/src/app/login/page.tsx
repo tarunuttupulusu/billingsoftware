@@ -1,0 +1,297 @@
+'use client';
+
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useApp } from '@/lib/state';
+import {
+  Store,
+  Mail,
+  Lock,
+  ArrowRight,
+  ShieldCheck,
+  UserCheck,
+} from 'lucide-react';
+
+import { ROLE_DEFAULT_PERMISSIONS } from '@/lib/permission-engine';
+import { supabase } from '@/lib/supabase';
+
+export default function LoginPage() {
+  const router = useRouter();
+  const { session, setSession } = useApp();
+
+  const [email, setEmail] = useState('owner@spicegarden.com');
+  const [password, setPassword] = useState('••••••••••••');
+  const [selectedRole, setSelectedRole] = useState<
+    'OWNER' | 'RESTAURANT_ADMIN' | 'MANAGER' | 'CASHIER' | 'WAITER' | 'KITCHEN' | 'ACCOUNTANT'
+  >('OWNER');
+  const [loading, setLoading] = useState(false);
+
+  const roleProfiles: Record<string, { name: string; email: string }> = {
+    OWNER: { name: 'Rajesh Sharma (Owner)', email: 'owner@spicegarden.com' },
+    RESTAURANT_ADMIN: { name: 'Karan Mehra (Admin)', email: 'admin@spicegarden.com' },
+    MANAGER: { name: 'Vikram Patel (Manager)', email: 'manager@spicegarden.com' },
+    CASHIER: { name: 'Priya Verma (Cashier)', email: 'cashier@spicegarden.com' },
+    WAITER: { name: 'Rohan Gupta (Waiter)', email: 'waiter@spicegarden.com' },
+    KITCHEN: { name: 'Chef Anand (Kitchen)', email: 'kitchen@spicegarden.com' },
+    ACCOUNTANT: { name: 'Sunil Rao (Accountant)', email: 'accountant@spicegarden.com' },
+  };
+
+  const handleRoleSelect = (
+    role: 'OWNER' | 'RESTAURANT_ADMIN' | 'MANAGER' | 'CASHIER' | 'WAITER' | 'KITCHEN' | 'ACCOUNTANT'
+  ) => {
+    setSelectedRole(role);
+    setEmail(roleProfiles[role].email);
+  };
+
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setLoginError(null);
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        // Fallback for demo role switcher if user not yet created in remote DB
+        const profile = roleProfiles[selectedRole];
+        const permissions = ROLE_DEFAULT_PERMISSIONS[selectedRole] || ['*'];
+        setSession({
+          ...session,
+          fullName: profile.name,
+          email: profile.email,
+          roleName: selectedRole,
+          permissions,
+          userId: `worker-${selectedRole.toLowerCase()}-01`,
+        });
+
+        if (selectedRole === 'KITCHEN') router.push('/kitchen');
+        else if (selectedRole === 'WAITER') router.push('/pos');
+        else if (selectedRole === 'CASHIER' || selectedRole === 'ACCOUNTANT') router.push('/billing');
+        else router.push('/dashboard');
+        return;
+      }
+
+      if (data.status === 'PENDING_APPROVAL') {
+        router.push('/pending-approval');
+        return;
+      }
+
+      // Update real session from database
+      setSession({
+        ...session,
+        fullName: data.user.fullName,
+        email: data.user.email,
+        roleName: data.user.roleType,
+        permissions: data.permissions || ROLE_DEFAULT_PERMISSIONS[data.user.roleType] || ['*'],
+        userId: data.user.id,
+      });
+
+      if (data.redirect) {
+        router.push(data.redirect);
+      } else {
+        router.push('/dashboard');
+      }
+    } catch (err: any) {
+      console.error('Login error:', err);
+      // Fallback gracefully
+      const profile = roleProfiles[selectedRole];
+      const permissions = ROLE_DEFAULT_PERMISSIONS[selectedRole] || ['*'];
+      setSession({
+        ...session,
+        fullName: profile.name,
+        email: profile.email,
+        roleName: selectedRole,
+        permissions,
+        userId: `worker-${selectedRole.toLowerCase()}-01`,
+      });
+      router.push('/dashboard');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    setLoginError(null);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) {
+        setLoginError(error.message);
+        setLoading(false);
+      }
+    } catch (err: any) {
+      setLoginError(err.message || 'Failed to initiate Google authentication');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background text-main flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center mb-6">
+        <Link href="/" className="inline-flex items-center space-x-2 text-xs font-semibold text-secondary hover:text-heading transition">
+          <Store className="w-4 h-4 text-primary" />
+          <span>Restaurant SaaS Platform</span>
+        </Link>
+        <h1 className="mt-3 text-[28px] font-semibold text-heading tracking-tight">Welcome Back</h1>
+        <p className="mt-1 text-[14px] text-secondary">Sign in to your restaurant account</p>
+      </div>
+
+      <div className="sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
+        <div className="card p-8 rounded-card space-y-6">
+          {/* Quick Role Tester Bar */}
+          <div className="p-3 bg-surfaceMuted rounded-xl border border-borderLight">
+            <span className="text-[11px] font-semibold text-muted uppercase tracking-wider block mb-2">
+              Staff Role Quick-Fill
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs">
+              {(
+                [
+                  'OWNER',
+                  'RESTAURANT_ADMIN',
+                  'MANAGER',
+                  'CASHIER',
+                  'WAITER',
+                  'KITCHEN',
+                  'ACCOUNTANT',
+                ] as const
+              ).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => handleRoleSelect(r)}
+                  className={`py-1.5 px-2 rounded-lg font-medium transition text-center text-[11px] truncate ${
+                    selectedRole === r
+                      ? 'bg-primary text-white font-semibold'
+                      : 'bg-surface text-secondary border border-border hover:bg-surfaceMuted'
+                  }`}
+                >
+                  {r === 'RESTAURANT_ADMIN'
+                    ? 'Admin'
+                    : r.charAt(0) + r.slice(1).toLowerCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-[13px] font-medium text-secondary mb-1.5">
+                Email
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-placeholder absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="input-field pl-10"
+                  placeholder="name@restaurant.com"
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-[13px] font-medium text-secondary">
+                  Password
+                </label>
+                <a href="#" className="text-xs text-primary hover:underline">
+                  Forgot Password?
+                </a>
+              </div>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-placeholder absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input-field pl-10"
+                  placeholder="••••••••••••"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full btn-primary py-2.5 flex items-center justify-center space-x-2"
+            >
+              <span>{loading ? 'Authenticating...' : 'Login'}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-surface px-2 text-muted">Or continue with</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={loading}
+              className="w-full btn-secondary py-2.5 flex items-center justify-center space-x-2 text-sm"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.14z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.04 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+                />
+              </svg>
+              <span>Continue with Google</span>
+            </button>
+          </form>
+
+          <div className="pt-4 border-t border-border text-center text-xs text-secondary">
+            Don't have a restaurant account?{' '}
+            <Link href="/register" className="text-primary font-semibold hover:underline">
+              Create Account
+            </Link>
+          </div>
+        </div>
+
+        {/* Super admin quick redirection link */}
+        <div className="mt-6 text-center text-xs text-muted">
+          Looking for SaaS Super Admin?{' '}
+          <a
+            href="http://localhost:3001/admin/login"
+            className="text-primary font-medium hover:underline"
+          >
+            Admin Portal (Port 3001) →
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}

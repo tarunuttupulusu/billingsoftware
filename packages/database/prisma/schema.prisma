@@ -1,0 +1,939 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ============================================================
+// 1. TENANTS & PLATFORM GOVERNANCE
+// ============================================================
+
+enum BusinessType {
+  RESTAURANT
+  CAFE
+  BAKERY
+  FAST_FOOD
+  CLOUD_KITCHEN
+  FOOD_COURT
+  HOTEL_RESTAURANT
+  BAR
+  CUSTOM
+}
+
+enum RegistrationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  INFO_REQUESTED
+  SUSPENDED
+}
+
+enum UserRoleType {
+  SUPER_ADMIN
+  OWNER
+  ADMIN
+  MANAGER
+  CASHIER
+  WAITER
+  KITCHEN
+  ACCOUNTANT
+  CUSTOM
+}
+
+model Tenant {
+  id           String             @id @default(uuid())
+  slug         String             @unique
+  name         String
+  businessType BusinessType       @default(RESTAURANT)
+  status       RegistrationStatus @default(PENDING)
+  owner_user_id String?           @db.Uuid
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  businessProfile      BusinessProfile?
+  registrationRequests RegistrationRequest[]
+  users                User[]
+  roles                Role[]
+  modules              TenantModule[]
+  settings             RestaurantSetting[]
+  tableSections        TableSection[]
+  tables               Table[]
+  categories           Category[]
+  menuItems            MenuItem[]
+  modifierGroups       ModifierGroup[]
+  kitchenStations      KitchenStation[]
+  orders               Order[]
+  invoices             Invoice[]
+  payments             Payment[]
+  customers            Customer[]
+  inventoryItems       InventoryItem[]
+  suppliers            Supplier[]
+  expenses             Expense[]
+  devices              Device[]
+  syncOperations       SyncOperation[]
+  auditLogs            AuditLog[]
+  subscriptions        Subscription[]
+
+  @@index([status])
+}
+
+model BusinessProfile {
+  id                  String   @id @default(uuid())
+  tenantId            String   @unique
+  businessName        String
+  legalEntityName     String?
+  logoUrl             String?
+  coverImageUrl       String?
+  phone               String
+  email               String
+  address             String
+  city                String
+  state               String
+  country             String   @default("IN")
+  postalCode          String?
+  taxNumber           String? // GST/VAT
+  currencyCode        String   @default("INR")
+  currencySymbol      String   @default("₹")
+  timezone            String   @default("Asia/Kolkata")
+  onboardingCompleted Boolean  @default(false)
+  user_id             String?  @db.Uuid
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model RegistrationRequest {
+  id              String             @id @default(uuid())
+  tenantId        String
+  applicantName   String
+  applicantEmail  String
+  applicantPhone  String
+  businessType    BusinessType
+  intendedModules Json? // Array of requested module tokens
+  tableCountEst   Int?
+  staffCountEst   Int?
+  status          RegistrationStatus @default(PENDING)
+  rejectionReason String?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+// ============================================================
+// 2. USERS, ROLES, PERMISSIONS & DEVICES
+// ============================================================
+
+model User {
+  id           String       @id @default(uuid())
+  tenantId     String? // Null for Platform Super Admin
+  email        String       @unique
+  passwordHash String
+  fullName     String
+  phone        String?
+  roleType     UserRoleType @default(WAITER)
+  roleId       String?
+  avatarUrl    String?
+  isActive     Boolean      @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  tenant    Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role      Role?     @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  devices   Device[]
+  sessions  Session[]
+  auditLogs AuditLog[]
+
+  @@index([tenantId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  token        String   @unique
+  deviceId     String?
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+enum DevicePlatform {
+  WEB
+  ANDROID_PHONE
+  ANDROID_TABLET
+  IOS_PHONE
+  IOS_TABLET
+  DESKTOP
+  POS_TERMINAL
+}
+
+model Device {
+  id           String         @id @default(uuid())
+  tenantId     String
+  userId       String?
+  deviceName   String
+  platform     DevicePlatform @default(WEB)
+  appVersion   String         @default("1.0.0")
+  isRevoked    Boolean        @default(false)
+  lastActiveAt DateTime       @default(now())
+  lastSyncAt   DateTime?
+  createdAt    DateTime       @default(now())
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user           User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sessions       Session[]
+  syncOperations SyncOperation[]
+
+  @@index([tenantId])
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  isSystem    Boolean  @default(false)
+  permissions Json     // String array of permission tokens
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users  User[]
+
+  @@unique([tenantId, name])
+}
+
+model TenantModule {
+  id          String   @id @default(uuid())
+  tenantId    String
+  moduleToken String
+  isEnabled   Boolean  @default(true)
+  configJson  Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, moduleToken])
+  @@index([tenantId])
+}
+
+model RestaurantSetting {
+  id         String   @id @default(uuid())
+  tenantId   String
+  key        String
+  valueJson  Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, key])
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  code        String   @unique // e.g. 'pos.create', 'tables.transfer'
+  moduleCode  String   // e.g. 'pos', 'tables'
+  action      String   // e.g. 'create', 'transfer'
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+
+  rolePermissions RolePermission[]
+  userPermissions UserPermission[]
+}
+
+model RolePermission {
+  id             String   @id @default(uuid())
+  roleId         String
+  permissionCode String
+  isGranted      Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  permission Permission @relation(fields: [permissionCode], references: [code], onDelete: Cascade)
+
+  @@unique([roleId, permissionCode])
+  @@index([roleId])
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  userId    String
+  roleId    String
+  tenantId  String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([tenantId])
+}
+
+model UserPermission {
+  id             String   @id @default(uuid())
+  userId         String
+  permissionCode String
+  isGranted      Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  permission Permission @relation(fields: [permissionCode], references: [code], onDelete: Cascade)
+
+  @@unique([userId, permissionCode])
+  @@index([userId])
+}
+
+model Module {
+  id             String   @id @default(uuid())
+  code           String   @unique // e.g. 'pos', 'tables', 'kitchen', 'billing'
+  name           String
+  category       String
+  description    String?
+  defaultEnabled Boolean  @default(true)
+  createdAt      DateTime @default(now())
+}
+
+model RestaurantModule {
+  id          String   @id @default(uuid())
+  tenantId    String
+  moduleCode  String
+  isEnabled   Boolean  @default(true)
+  configJson  Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, moduleCode])
+  @@index([tenantId])
+}
+
+model NavigationItem {
+  id                 String   @id @default(uuid())
+  label              String
+  icon               String
+  path               String
+  moduleCode         String
+  requiredPermission String?
+  sortOrder          Int      @default(0)
+  parentId           String?
+  createdAt          DateTime @default(now())
+
+  roleNavigationPermissions RoleNavigationPermission[]
+}
+
+model RoleNavigationPermission {
+  id               String   @id @default(uuid())
+  roleId           String
+  navigationItemId String
+  isVisible        Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  navigationItem NavigationItem @relation(fields: [navigationItemId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, navigationItemId])
+  @@index([roleId])
+}
+
+// ============================================================
+// 3. TABLE & FLOOR MANAGEMENT
+// ============================================================
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  ORDER_READY
+  BILLING
+  RESERVED
+  OUT_OF_SERVICE
+}
+
+model TableSection {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tables Table[]
+
+  @@index([tenantId])
+}
+
+model Table {
+  id          String      @id @default(uuid())
+  tenantId    String
+  sectionId   String?
+  tableNumber String
+  tableName   String
+  capacity    Int         @default(4)
+  status      TableStatus @default(AVAILABLE)
+  qrCodeToken String      @unique @default(uuid())
+  sortOrder   Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  tenant  Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  section TableSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  orders  Order[]
+
+  @@unique([tenantId, tableNumber])
+  @@index([tenantId, status])
+}
+
+// ============================================================
+// 4. MENU & CATALOG
+// ============================================================
+
+enum FoodType {
+  VEG
+  NON_VEG
+  EGG
+  BEVERAGE
+  OTHER
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  imageUrl    String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  menuItems MenuItem[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model MenuItem {
+  id               String   @id @default(uuid())
+  tenantId         String
+  categoryId       String
+  name             String
+  description      String?
+  basePrice        Int      // in lowest currency unit (cents/paise)
+  taxRatePercent   Int      @default(5)
+  foodType         FoodType @default(VEG)
+  imageUrl         String?
+  sku              String?
+  isAvailable      Boolean  @default(true)
+  kitchenStationId String?
+  sortOrder        Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant         Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category       Category             @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  kitchenStation KitchenStation?      @relation(fields: [kitchenStationId], references: [id], onDelete: SetNull)
+  variants       MenuVariant[]
+  modifierGroups ItemModifierGroup[]
+  orderItems     OrderItem[]
+  recipeBom      RecipeBom[]
+
+  @@index([tenantId, categoryId])
+}
+
+model MenuVariant {
+  id          String   @id @default(uuid())
+  menuItemId  String
+  name        String   // Half, Full, Regular, Large
+  price       Int      // in lowest currency unit
+  isAvailable Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  menuItem   MenuItem    @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+}
+
+model ModifierGroup {
+  id            String   @id @default(uuid())
+  tenantId      String
+  name          String
+  minSelections Int      @default(0)
+  maxSelections Int      @default(1)
+  createdAt     DateTime @default(now())
+
+  tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  modifiers Modifier[]
+  items     ItemModifierGroup[]
+
+  @@index([tenantId])
+}
+
+model Modifier {
+  id          String   @id @default(uuid())
+  groupId     String
+  name        String
+  priceDelta  Int      @default(0)
+  isAvailable Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  group ModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+}
+
+model ItemModifierGroup {
+  menuItemId      String
+  modifierGroupId String
+
+  menuItem      MenuItem      @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  modifierGroup ModifierGroup @relation(fields: [modifierGroupId], references: [id], onDelete: Cascade)
+
+  @@id([menuItemId, modifierGroupId])
+}
+
+// ============================================================
+// 5. ORDERS & KITCHEN TICKETS
+// ============================================================
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+  COUNTER
+}
+
+enum OrderStatus {
+  DRAFT
+  PLACED
+  CONFIRMED
+  PREPARING
+  READY
+  SERVED
+  BILLED
+  COMPLETED
+  CANCELLED
+}
+
+enum KitchenTicketStatus {
+  PENDING
+  ACCEPTED
+  PREPARING
+  READY
+  SERVED
+  CANCELLED
+}
+
+model KitchenStation {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  printerId String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  tenant    Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  menuItems MenuItem[]
+  tickets   KitchenTicket[]
+
+  @@unique([tenantId, name])
+}
+
+model Order {
+  id                  String      @id @default(uuid())
+  tenantId            String
+  orderNumber         String
+  orderType           OrderType   @default(DINE_IN)
+  tableId             String?
+  customerId          String?
+  status              OrderStatus @default(PLACED)
+  guestCount          Int         @default(1)
+  subtotal            Int         @default(0) // cents
+  taxAmount           Int         @default(0)
+  discountAmount      Int         @default(0)
+  serviceChargeAmount Int         @default(0)
+  roundOffAmount      Int         @default(0)
+  grandTotal          Int         @default(0)
+  createdByWorkerId   String
+  createdByWorkerName String
+  deviceId            String
+  notes               String?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  table          Table?          @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  customer       Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  items          OrderItem[]
+  kitchenTickets KitchenTicket[]
+  invoice        Invoice?
+
+  @@unique([tenantId, orderNumber])
+  @@index([tenantId, status])
+  @@index([tenantId, tableId])
+}
+
+model OrderItem {
+  id                  String      @id @default(uuid())
+  orderId             String
+  menuItemId          String
+  variantId           String?
+  itemName            String
+  variantName         String?
+  unitPrice           Int
+  quantity            Int
+  subtotal            Int
+  notes               String?
+  status              OrderStatus @default(PLACED)
+  addedByWorkerId     String
+  addedByWorkerName   String
+  kitchenTicketItemId String?
+  createdAt           DateTime    @default(now())
+
+  order              Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem           MenuItem            @relation(fields: [menuItemId], references: [id])
+  variant            MenuVariant?        @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  modifiers          OrderItemModifier[]
+  kitchenTicketItems KitchenTicketItem[]
+
+  @@index([orderId])
+}
+
+model OrderItemModifier {
+  id             String @id @default(uuid())
+  orderItemId    String
+  modifierName   String
+  unitPriceDelta Int
+
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+}
+
+model KitchenTicket {
+  id           String              @id @default(uuid())
+  tenantId     String
+  ticketNumber String
+  orderId      String
+  stationId    String?
+  status       KitchenTicketStatus @default(PENDING)
+  waiterName   String
+  acceptedAt   DateTime?
+  readyAt      DateTime?
+  createdAt    DateTime            @default(now())
+
+  order   Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  station KitchenStation?     @relation(fields: [stationId], references: [id], onDelete: SetNull)
+  items   KitchenTicketItem[]
+
+  @@index([tenantId, status])
+  @@index([orderId])
+}
+
+model KitchenTicketItem {
+  id                  String              @id @default(uuid())
+  kitchenTicketId     String
+  orderItemId         String
+  itemName            String
+  variantName         String?
+  quantity            Int
+  notes               String?
+  modifiersSummary    String?
+  status              KitchenTicketStatus @default(PENDING)
+
+  kitchenTicket KitchenTicket @relation(fields: [kitchenTicketId], references: [id], onDelete: Cascade)
+  orderItem     OrderItem     @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================
+// 6. INVOICING & PAYMENTS
+// ============================================================
+
+enum PaymentMethod {
+  CASH
+  UPI
+  CARD
+  ONLINE
+  SPLIT
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+model Invoice {
+  id                  String   @id @default(uuid())
+  tenantId            String
+  invoiceNumber       String
+  orderId             String   @unique
+  subtotal            Int
+  taxAmount           Int
+  taxDetailsJson      Json?
+  discountAmount      Int      @default(0)
+  discountReason      String?
+  serviceChargeAmount Int      @default(0)
+  roundOffAmount      Int      @default(0)
+  grandTotal          Int
+  status              String   @default("PAID") // UNPAID, PAID, VOIDED, REFUNDED
+  paidAmount          Int      @default(0)
+  dueAmount           Int      @default(0)
+  generatedByWorkerId String
+  generatedByWorkerName String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order    Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  payments Payment[]
+
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId, status])
+}
+
+model Payment {
+  id                   String        @id @default(uuid())
+  tenantId             String
+  invoiceId            String
+  amount               Int
+  method               PaymentMethod
+  status               PaymentStatus @default(COMPLETED)
+  transactionReference String?
+  processedByWorkerId  String
+  processedByWorkerName String
+  processedAt          DateTime      @default(now())
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, invoiceId])
+}
+
+// ============================================================
+// 7. INVENTORY, RECIPES & CRM
+// ============================================================
+
+model Customer {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  phone       String
+  email       String?
+  totalVisits Int      @default(0)
+  totalSpend  Int      @default(0)
+  lastVisitAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@unique([tenantId, phone])
+  @@index([tenantId])
+}
+
+model InventoryItem {
+  id           String   @id @default(uuid())
+  tenantId     String
+  name         String
+  sku          String?
+  unit         String   // kg, g, l, ml, pcs
+  currentStock Float    @default(0)
+  minAlertStock Float   @default(5)
+  costPerUnit  Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant       Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  transactions InventoryTransaction[]
+  recipeBoms   RecipeBom[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model RecipeBom {
+  id              String @id @default(uuid())
+  menuItemId      String
+  inventoryItemId String
+  quantityUsed    Float
+
+  menuItem      MenuItem      @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+
+  @@unique([menuItemId, inventoryItemId])
+}
+
+model InventoryTransaction {
+  id              String   @id @default(uuid())
+  inventoryItemId String
+  type            String   // PURCHASE, CONSUMPTION, SPOILAGE, ADJUSTMENT
+  quantity        Float
+  unitCost        Int
+  totalCost       Int
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+}
+
+model Supplier {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  contactPerson String?
+  phone     String
+  email     String?
+  address   String?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model Expense {
+  id         String   @id @default(uuid())
+  tenantId   String
+  category   String
+  amount     Int
+  paymentMode String  @default("CASH")
+  notes      String?
+  recordedBy String
+  createdAt  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+// ============================================================
+// 8. OFFLINE SYNC, AUDIT TRAIL & SUBSCRIPTIONS
+// ============================================================
+
+enum SyncStatus {
+  PENDING
+  SYNCING
+  SYNCED
+  FAILED
+  CONFLICT
+}
+
+model SyncOperation {
+  id              String     @id // RFC 9562 UUIDv7
+  tenantId        String
+  deviceId        String
+  workerId        String
+  entityType      String
+  action          String
+  localTimestamp  BigInt
+  idempotencyKey  String     @unique
+  payloadJson     Json
+  status          SyncStatus @default(PENDING)
+  retryCount      Int        @default(0)
+  lastErrorMessage String?
+  syncedAt        DateTime?
+  createdAt       DateTime   @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  tenantId     String
+  userId       String
+  userName     String
+  deviceId     String?
+  action       String
+  entityType   String
+  entityId     String
+  metadataJson Json?
+  ipAddress    String?
+  timestamp    DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, entityType])
+  @@index([tenantId, timestamp])
+}
+
+model SubscriptionPlan {
+  id                 String         @id @default(uuid())
+  name               String         @unique // FREE, STARTER, PRO, ENTERPRISE
+  description        String
+  monthlyPrice       Int
+  yearlyPrice        Int
+  maxTables          Int            @default(10)
+  maxStaff           Int            @default(5)
+  maxDevices         Int            @default(3)
+  featuresJson       Json
+  isActive           Boolean        @default(true)
+  subscriptions      Subscription[]
+}
+
+model Subscription {
+  id             String           @id @default(uuid())
+  tenantId       String
+  planId         String
+  billingCycle   String           @default("MONTHLY") // MONTHLY, YEARLY
+  status         String           @default("ACTIVE")  // ACTIVE, PAST_DUE, CANCELLED
+  currentPeriodEnd DateTime
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  tenant Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  @@index([tenantId])
+}
+
+// ============================================================
+// 9. SUPABASE AUTH & ISOLATED USER ENVIRONMENT
+// ============================================================
+
+model Profile {
+  id        String   @id @db.Uuid
+  fullName  String?  @map("full_name")
+  phone     String?
+  avatarUrl String?  @map("avatar_url")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("profiles")
+}
+
+model UserSettings {
+  id                   String   @id @default(uuid()) @db.Uuid
+  userId               String   @unique @map("user_id") @db.Uuid
+  theme                String?  @default("system")
+  notificationsEnabled Boolean? @default(true) @map("notifications_enabled")
+  language             String?  @default("en")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("user_settings")
+}
+
+model UserPreferences {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @unique @map("user_id") @db.Uuid
+  dashboardLayout Json?    @default("{\"density\":\"comfortable\"}") @map("dashboard_layout")
+  favoriteModules Json?    @default("[\"POS\",\"TABLES\",\"ORDERS\",\"BILLING\"]") @map("favorite_modules")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("user_preferences")
+}

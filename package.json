@@ -1,0 +1,33 @@
+{
+  "name": "restaurant-saas-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production-Grade Multi-Tenant Offline-First Restaurant POS, Billing & SaaS Platform",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:admin": "npm run dev --workspace=apps/admin",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "tsc --noEmit -p apps/web && tsc --noEmit -p apps/admin",
+    "check-types": "tsc --noEmit -p apps/web && tsc --noEmit -p apps/admin",
+    "db:generate": "npm run generate --workspace=packages/database",
+    "db:push": "npm run push --workspace=packages/database",
+    "db:seed": "npm run seed --workspace=packages/database"
+  },
+  "keywords": [
+    "restaurant-pos",
+    "multi-tenant",
+    "offline-first",
+    "billing",
+    "kds",
+    "saas"
+  ],
+  "author": "",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.1"
+  }
+}
