@@ -157,21 +157,12 @@ export default function LandingPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <a
-                    href="http://localhost:3001/admin/login"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full btn-secondary flex items-center justify-center space-x-2"
-                  >
-                    <span>Admin Login (Port 3001)</span>
-                    <ExternalLink className="w-4 h-4 text-placeholder" />
-                  </a>
-
                   <Link
                     href="/admin/login"
-                    className="w-full btn-ghost border border-border flex items-center justify-center space-x-2"
+                    className="w-full btn-secondary flex items-center justify-center space-x-2"
                   >
-                    <span>Super Admin Mock / View</span>
+                    <span>SaaS Admin Login</span>
+                    <ArrowRight className="w-4 h-4 text-placeholder" />
                   </Link>
 
                   <div className="pt-2 text-center text-xs text-muted">
