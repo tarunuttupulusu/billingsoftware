@@ -6,6 +6,7 @@ const nextConfig = {
     '@platform/config-engine',
     '@platform/offline-sync',
     '@platform/print-engine',
+    '@platform/database',
   ],
 };
 
