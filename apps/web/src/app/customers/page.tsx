@@ -15,33 +15,51 @@ import {
 } from 'lucide-react';
 
 export default function CustomersDirectoryPage() {
-  const { profile } = useApp();
-
-  const [customers, setCustomers] = useState([
-    { name: 'Rahul Kumar', phone: '+91 98765 88888', email: 'rahul@gmail.com', totalVisits: 14, totalSpend: '₹18,400', lastVisit: 'Yesterday' },
-    { name: 'Sneha Reddy', phone: '+91 98765 77777', email: 'sneha@yahoo.com', totalVisits: 9, totalSpend: '₹11,200', lastVisit: '3 days ago' },
-    { name: 'Ananya Sharma', phone: '+91 98765 66666', email: 'ananya@outlook.com', totalVisits: 22, totalSpend: '₹29,500', lastVisit: 'Today' },
-    { name: 'Karthik Rao', phone: '+91 98765 55555', email: 'karthik@gmail.com', totalVisits: 6, totalSpend: '₹6,800', lastVisit: '1 week ago' },
-  ]);
+  const { customers, setCustomers, profile } = useApp();
   const [search, setSearch] = useState('');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
 
+  const currencySymbol = profile.currencySymbol || '₹';
+
   const filtered = customers.filter(
     (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.phone.includes(search)
+      c.name?.toLowerCase().includes(search.toLowerCase()) ||
+      c.phone?.includes(search)
   );
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !phone) return;
-    setCustomers([
-      { name, phone, email: email || 'customer@gmail.com', totalVisits: 1, totalSpend: '₹0', lastVisit: 'Just now' },
-      ...customers,
-    ]);
+    const newCustomer = {
+      id: `cust-${Date.now()}`,
+      tenantId: profile.tenantId,
+      name,
+      phone,
+      email: email || '',
+      totalVisits: 1,
+      totalSpend: 0,
+      lastVisitAt: new Date().toISOString(),
+    };
+
+    setCustomers([newCustomer, ...customers]);
+
+    // Save to DB
+    try {
+      await fetch('/api/tenant/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: profile.tenantId,
+          name,
+          phone,
+          email,
+        }),
+      });
+    } catch {}
+
     setName('');
     setPhone('');
     setEmail('');
@@ -56,108 +74,148 @@ export default function CustomersDirectoryPage() {
             Customer Directory & CRM
           </h1>
           <p className="text-[14px] text-secondary mt-1">
-            Track customer visit frequency, lifetime spend, and loyalty rewards
+            Track customer visit frequency, lifetime spend, and loyalty rewards from database
           </p>
         </div>
+
         <button onClick={() => setIsAddOpen(true)} className="btn-primary">
           <Plus className="w-4 h-4 stroke-[2.5]" />
           <span>Add Customer</span>
         </button>
       </div>
 
+      {/* 4 Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="stat-card">
-          <div className="text-[14px] text-secondary font-medium">Total customers</div>
+          <div className="text-[14px] text-secondary font-medium">Total Registered Guests</div>
           <div className="text-[28px] font-semibold text-heading mt-2 leading-none">{customers.length}</div>
         </div>
         <div className="stat-card">
-          <div className="text-[14px] text-secondary font-medium">VIP regulars</div>
-          <div className="text-[28px] font-semibold text-success mt-2 leading-none">2</div>
+          <div className="text-[14px] text-secondary font-medium">VIP Repeat Guests</div>
+          <div className="text-[28px] font-semibold text-success mt-2 leading-none">
+            {customers.filter((c) => (c.totalVisits || 0) > 5).length}
+          </div>
         </div>
         <div className="stat-card">
-          <div className="text-[14px] text-secondary font-medium">Repeat rate</div>
-          <div className="text-[28px] font-semibold text-info mt-2 leading-none">68%</div>
+          <div className="text-[14px] text-secondary font-medium">Average Spend / Visit</div>
+          <div className="text-[28px] font-semibold text-info mt-2 leading-none">
+            {currencySymbol}
+            {customers.length > 0
+              ? (customers.reduce((acc, c) => acc + (c.totalSpend || 0), 0) / customers.length / 100).toFixed(0)
+              : '0'}
+          </div>
         </div>
         <div className="stat-card">
-          <div className="text-[14px] text-secondary font-medium">Avg spend per visit</div>
-          <div className="text-[28px] font-semibold text-heading mt-2 leading-none">₹1,320</div>
+          <div className="text-[14px] text-secondary font-medium">SMS Loyalty Opt-in</div>
+          <div className="text-[28px] font-semibold text-primary mt-2 leading-none">100%</div>
         </div>
       </div>
 
+      {/* Search */}
       <div className="relative max-w-md">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-placeholder" />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by customer name or phone..."
+          placeholder="Search by customer name or phone number..."
           className="search-input w-full"
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {filtered.map((c, idx) => (
-          <div key={idx} className="card flex flex-col justify-between hover:border-placeholder transition">
-            <div>
-              <div className="flex items-center space-x-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-primary-soft text-primary flex items-center justify-center font-bold text-sm">
-                  {c.name.charAt(0)}
-                </div>
-                <div>
-                  <h3 className="font-semibold text-[15px] text-heading leading-tight">{c.name}</h3>
-                  <span className="text-xs text-secondary">{c.phone}</span>
-                </div>
-              </div>
-
-              <div className="space-y-1.5 text-xs pt-3 border-t border-borderLight text-secondary">
-                <div className="flex justify-between">
-                  <span className="text-muted">Total Visits:</span>
-                  <span className="font-semibold text-heading">{c.totalVisits} times</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted">Lifetime Spend:</span>
-                  <span className="font-semibold text-heading">{c.totalSpend}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted">Last Visit:</span>
-                  <span className="text-secondary">{c.lastVisit}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-borderLight mt-4 flex justify-between items-center text-xs">
-              <span className="text-muted truncate max-w-[120px]">{c.email}</span>
-              <span className="text-primary font-medium hover:underline cursor-pointer">Order History</span>
-            </div>
+      {/* Directory Table */}
+      <div className="card p-0 overflow-hidden">
+        {filtered.length > 0 ? (
+          <table className="w-full text-left text-[14px]">
+            <thead className="bg-surfaceMuted text-muted text-xs font-semibold uppercase tracking-wider border-b border-border">
+              <tr>
+                <th className="px-6 py-3.5">Customer Name</th>
+                <th className="px-6 py-3.5">Phone Number</th>
+                <th className="px-6 py-3.5">Email</th>
+                <th className="px-6 py-3.5">Total Visits</th>
+                <th className="px-6 py-3.5">Lifetime Spend</th>
+                <th className="px-6 py-3.5">Last Visit</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-borderLight">
+              {filtered.map((c) => (
+                <tr key={c.id || c.phone} className="hover:bg-surfaceMuted/50 transition">
+                  <td className="px-6 py-4 font-semibold text-heading">{c.name}</td>
+                  <td className="px-6 py-4 font-mono text-secondary text-xs">{c.phone}</td>
+                  <td className="px-6 py-4 text-secondary text-xs">{c.email || '—'}</td>
+                  <td className="px-6 py-4 font-semibold text-heading">{c.totalVisits || 1}</td>
+                  <td className="px-6 py-4 font-semibold text-heading">
+                    {currencySymbol}{(Number(c.totalSpend || 0) / 100).toFixed(2)}
+                  </td>
+                  <td className="px-6 py-4 text-muted text-xs">
+                    {c.lastVisitAt ? new Date(c.lastVisitAt).toLocaleDateString() : 'Recent'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="p-12 text-center space-y-3">
+            <Users className="w-10 h-10 text-placeholder mx-auto" />
+            <p className="text-sm text-secondary">No customer profiles recorded in this restaurant yet.</p>
+            <button onClick={() => setIsAddOpen(true)} className="btn-primary text-xs py-1.5 px-4 inline-flex items-center space-x-1">
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add First Customer</span>
+            </button>
           </div>
-        ))}
+        )}
       </div>
 
+      {/* Add Modal */}
       {isAddOpen && (
-        <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-surface border border-border rounded-[20px] shadow-dropdown w-full max-w-md p-6 space-y-4">
-            <div className="flex justify-between items-center pb-3 border-b border-borderLight">
-              <h3 className="font-semibold text-lg text-heading">Add Customer</h3>
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-surface rounded-2xl border border-border max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold text-lg text-heading">Add New Customer</h3>
               <button onClick={() => setIsAddOpen(false)} className="text-placeholder hover:text-heading">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleAdd} className="space-y-4">
+            <form onSubmit={handleAdd} className="space-y-3 text-xs">
               <div>
-                <label className="block text-xs font-medium text-main mb-1">Full Name</label>
-                <input required value={name} onChange={(e) => setName(e.target.value)} className="input-field" placeholder="John Doe" />
+                <label className="block font-medium text-secondary mb-1">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Vikram Sharma"
+                  className="input-field"
+                />
               </div>
               <div>
-                <label className="block text-xs font-medium text-main mb-1">Phone Number</label>
-                <input required value={phone} onChange={(e) => setPhone(e.target.value)} className="input-field" placeholder="+91 98765 00000" />
+                <label className="block font-medium text-secondary mb-1">Phone Number</label>
+                <input
+                  type="tel"
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+91 98765 43210"
+                  className="input-field"
+                />
               </div>
               <div>
-                <label className="block text-xs font-medium text-main mb-1">Email (Optional)</label>
-                <input value={email} onChange={(e) => setEmail(e.target.value)} className="input-field" placeholder="john@example.com" />
+                <label className="block font-medium text-secondary mb-1">Email Address</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@gmail.com"
+                  className="input-field"
+                />
               </div>
-              <div className="flex justify-end space-x-2 pt-3">
-                <button type="button" onClick={() => setIsAddOpen(false)} className="btn-secondary">Cancel</button>
-                <button type="submit" className="btn-primary">Save Customer</button>
+              <div className="flex justify-end space-x-2 pt-2">
+                <button type="button" onClick={() => setIsAddOpen(false)} className="btn-secondary">
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary">
+                  Save Customer
+                </button>
               </div>
             </form>
           </div>

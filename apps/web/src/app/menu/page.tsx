@@ -41,8 +41,15 @@ export default function MenuManagementSectionPage() {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get('tab') || 'overview';
   const [activeTab, setActiveTab] = useState(initialTab);
-  const { categories, menuItems, profile } = useApp();
+  const { categories, setCategories, menuItems, setMenuItems, profile } = useApp();
   const [search, setSearch] = useState('');
+
+  // Add Item State
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [categoryName, setCategoryName] = useState('Main Course');
+  const [basePrice, setBasePrice] = useState('');
+  const [foodType, setFoodType] = useState('VEG');
 
   // AI OCR State
   const [ocrMode, setOcrMode] = useState<'text' | 'image'>('text');
@@ -112,6 +119,56 @@ Masala Buttermilk - ₹70`
     setExtractedData(null);
   };
 
+  const handleAddItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !basePrice) return;
+
+    let targetCat = categories.find((c) => c.name.toLowerCase() === categoryName.toLowerCase());
+    let categoryId = targetCat?.id || `cat-${Date.now()}`;
+
+    if (!targetCat) {
+      targetCat = {
+        id: categoryId,
+        tenantId: profile.tenantId,
+        name: categoryName,
+        sortOrder: categories.length + 1,
+        isActive: true,
+      };
+      setCategories([...categories, targetCat]);
+    }
+
+    const newItem: any = {
+      id: `item-${Date.now()}`,
+      tenantId: profile.tenantId,
+      categoryId,
+      name,
+      basePrice: Math.round(Number(basePrice) * 100),
+      taxRatePercent: 5,
+      foodType,
+      isAvailable: true,
+    };
+
+    setMenuItems([...menuItems, newItem]);
+
+    try {
+      await fetch('/api/tenant/menu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: profile.tenantId,
+          name,
+          categoryName,
+          basePrice,
+          foodType,
+        }),
+      });
+    } catch {}
+
+    setName('');
+    setBasePrice('');
+    setIsAddOpen(false);
+  };
+
   return (
     <div className="p-8 sm:p-10 max-w-[1400px] mx-auto space-y-8 font-sans">
       {/* Header */}
@@ -133,7 +190,7 @@ Masala Buttermilk - ₹70`
             <Sparkles className="w-4 h-4 text-primary" />
             <span>AI Menu OCR (Gemini)</span>
           </button>
-          <button className="btn-primary">
+          <button onClick={() => setIsAddOpen(true)} className="btn-primary">
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Add Item</span>
           </button>
@@ -157,8 +214,8 @@ Masala Buttermilk - ₹70`
           </div>
         </div>
         <div className="stat-card">
-          <div className="text-[14px] text-secondary font-medium">Active Modifiers</div>
-          <div className="text-[28px] font-semibold text-info mt-2 leading-none">8</div>
+          <div className="text-[14px] text-secondary font-medium">Database Status</div>
+          <div className="text-[28px] font-semibold text-info mt-2 leading-none">Live Synced</div>
         </div>
       </div>
 
@@ -199,69 +256,76 @@ Masala Buttermilk - ₹70`
           </div>
 
           <div className="card p-0 overflow-hidden">
-            <table className="w-full text-left text-[14px]">
-              <thead className="bg-surfaceMuted text-muted text-xs font-semibold uppercase tracking-wider border-b border-border">
-                <tr>
-                  <th className="px-6 py-3.5">Dish Name</th>
-                  <th className="px-6 py-3.5">Category</th>
-                  <th className="px-6 py-3.5">Price</th>
-                  <th className="px-6 py-3.5">Tax (GST)</th>
-                  <th className="px-6 py-3.5">Type</th>
-                  <th className="px-6 py-3.5">Status</th>
-                  <th className="px-6 py-3.5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-borderLight">
-                {filteredItems.map((item) => {
-                  const cat = categories.find((c) => c.id === item.categoryId);
-                  return (
-                    <tr key={item.id} className="hover:bg-surfaceMuted/50 transition">
-                      <td className="px-6 py-4">
-                        <div className="font-semibold text-heading">{item.name}</div>
-                        <div className="text-xs text-muted">ID: {item.id}</div>
-                      </td>
-                      <td className="px-6 py-4 text-secondary">{cat?.name || 'Main Course'}</td>
-                      <td className="px-6 py-4 font-semibold text-heading">
-                        ₹{(item.basePrice / 100).toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 text-secondary">{item.taxRatePercent}%</td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold ${
-                            item.foodType === 'NON_VEG'
-                              ? 'bg-rose-100 text-rose-800'
-                              : item.foodType === 'VEG'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-amber-100 text-amber-800'
-                          }`}
-                        >
-                          {item.foodType}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                            item.isAvailable
-                              ? 'bg-success-bg text-success'
-                              : 'bg-danger-bg text-danger'
-                          }`}
-                        >
-                          {item.isAvailable ? 'In Stock' : 'Out of Stock'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right space-x-2">
-                        <button className="p-1.5 rounded-lg text-placeholder hover:text-primary transition" title="Edit">
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button className="p-1.5 rounded-lg text-placeholder hover:text-danger transition" title="Delete">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            {filteredItems.length > 0 ? (
+              <table className="w-full text-left text-[14px]">
+                <thead className="bg-surfaceMuted text-muted text-xs font-semibold uppercase tracking-wider border-b border-border">
+                  <tr>
+                    <th className="px-6 py-3.5">Dish Name</th>
+                    <th className="px-6 py-3.5">Category</th>
+                    <th className="px-6 py-3.5">Price</th>
+                    <th className="px-6 py-3.5">Tax (GST)</th>
+                    <th className="px-6 py-3.5">Type</th>
+                    <th className="px-6 py-3.5">Status</th>
+                    <th className="px-6 py-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-borderLight">
+                  {filteredItems.map((item) => {
+                    const cat = categories.find((c) => c.id === item.categoryId);
+                    return (
+                      <tr key={item.id} className="hover:bg-surfaceMuted/50 transition">
+                        <td className="px-6 py-4">
+                          <div className="font-semibold text-heading">{item.name}</div>
+                        </td>
+                        <td className="px-6 py-4 text-secondary">{cat?.name || 'Main Course'}</td>
+                        <td className="px-6 py-4 font-semibold text-heading">
+                          ₹{(item.basePrice / 100).toFixed(2)}
+                        </td>
+                        <td className="px-6 py-4 text-secondary">{item.taxRatePercent}%</td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold ${
+                              item.foodType === 'NON_VEG'
+                                ? 'bg-rose-100 text-rose-800'
+                                : item.foodType === 'VEG'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {item.foodType}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                              item.isAvailable
+                                ? 'bg-success-bg text-success'
+                                : 'bg-danger-bg text-danger'
+                            }`}
+                          >
+                            {item.isAvailable ? 'In Stock' : 'Out of Stock'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right space-x-2">
+                          <button className="p-1.5 rounded-lg text-placeholder hover:text-danger transition" title="Delete">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <div className="p-12 text-center space-y-3">
+                <BookOpen className="w-10 h-10 text-placeholder mx-auto" />
+                <p className="text-sm text-secondary">No dishes or menu items added to this restaurant catalog yet.</p>
+                <button onClick={() => setIsAddOpen(true)} className="btn-primary text-xs py-1.5 px-4 inline-flex items-center space-x-1">
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add First Dish</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -445,6 +509,98 @@ Gulab Jamun with Rabdi - ₹140 [VEG]`)
               <QrCode className="w-4 h-4" />
               <span>Download Printable Table QRs</span>
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Add Dish Modal */}
+      {isAddOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-surface rounded-2xl border border-border max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex justify-between items-center pb-2 border-b border-borderLight">
+              <h3 className="font-semibold text-heading text-lg">Add New Dish / Menu Item</h3>
+              <button
+                onClick={() => setIsAddOpen(false)}
+                className="text-secondary hover:text-heading text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAddItem} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-secondary mb-1">
+                  Item / Dish Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Butter Chicken, Paneer Tikka"
+                  className="input-field text-sm"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-secondary mb-1">
+                    Category Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={categoryName}
+                    onChange={(e) => setCategoryName(e.target.value)}
+                    placeholder="e.g. Starters, Main Course"
+                    className="input-field text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-secondary mb-1">
+                    Price (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={basePrice}
+                    onChange={(e) => setBasePrice(e.target.value)}
+                    placeholder="e.g. 250"
+                    className="input-field text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-secondary mb-1">
+                  Dietary Food Type
+                </label>
+                <select
+                  value={foodType}
+                  onChange={(e) => setFoodType(e.target.value)}
+                  className="input-field text-sm"
+                >
+                  <option value="VEG">🟢 Vegetarian (VEG)</option>
+                  <option value="NON_VEG">🔴 Non-Vegetarian (NON_VEG)</option>
+                  <option value="EGG">🟡 Contains Egg (EGG)</option>
+                </select>
+              </div>
+
+              <div className="pt-3 border-t border-borderLight flex justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddOpen(false)}
+                  className="btn-secondary text-xs"
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary text-xs">
+                  Save Dish to Database
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

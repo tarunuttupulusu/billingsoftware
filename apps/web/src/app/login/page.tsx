@@ -20,11 +20,8 @@ export default function LoginPage() {
   const router = useRouter();
   const { session, setSession, setProfile, setBusinessType } = useApp();
 
-  const [email, setEmail] = useState('owner@spicegarden.com');
-  const [password, setPassword] = useState('••••••••••••');
-  const [selectedRole, setSelectedRole] = useState<
-    'OWNER' | 'RESTAURANT_ADMIN' | 'MANAGER' | 'CASHIER' | 'WAITER' | 'KITCHEN' | 'ACCOUNTANT'
-  >('OWNER');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
@@ -44,22 +41,7 @@ export default function LoginPage() {
     }
   }, [router]);
 
-  const roleProfiles: Record<string, { name: string; email: string }> = {
-    OWNER: { name: 'Rajesh Sharma (Owner)', email: 'owner@spicegarden.com' },
-    RESTAURANT_ADMIN: { name: 'Karan Mehra (Admin)', email: 'admin@spicegarden.com' },
-    MANAGER: { name: 'Vikram Patel (Manager)', email: 'manager@spicegarden.com' },
-    CASHIER: { name: 'Priya Verma (Cashier)', email: 'cashier@spicegarden.com' },
-    WAITER: { name: 'Rohan Gupta (Waiter)', email: 'waiter@spicegarden.com' },
-    KITCHEN: { name: 'Chef Anand (Kitchen)', email: 'kitchen@spicegarden.com' },
-    ACCOUNTANT: { name: 'Sunil Rao (Accountant)', email: 'accountant@spicegarden.com' },
-  };
 
-  const handleRoleSelect = (
-    role: 'OWNER' | 'RESTAURANT_ADMIN' | 'MANAGER' | 'CASHIER' | 'WAITER' | 'KITCHEN' | 'ACCOUNTANT'
-  ) => {
-    setSelectedRole(role);
-    setEmail(roleProfiles[role].email);
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,22 +58,7 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        // Fallback for demo role switcher if user not yet created in remote DB
-        const profile = roleProfiles[selectedRole];
-        const permissions = ROLE_DEFAULT_PERMISSIONS[selectedRole] || ['*'];
-        setSession({
-          ...session,
-          fullName: profile.name,
-          email: profile.email,
-          roleName: selectedRole,
-          permissions,
-          userId: `worker-${selectedRole.toLowerCase()}-01`,
-        });
-
-        if (selectedRole === 'KITCHEN') router.push('/kitchen');
-        else if (selectedRole === 'WAITER') router.push('/pos');
-        else if (selectedRole === 'CASHIER' || selectedRole === 'ACCOUNTANT') router.push('/billing');
-        else router.push('/dashboard');
+        setLoginError(data.message || data.error || 'Invalid email or password. Please try again.');
         return;
       }
 
@@ -143,19 +110,7 @@ export default function LoginPage() {
         router.push('/dashboard');
       }
     } catch (err: any) {
-      console.error('Login error:', err);
-      // Fallback gracefully
-      const profile = roleProfiles[selectedRole];
-      const permissions = ROLE_DEFAULT_PERMISSIONS[selectedRole] || ['*'];
-      setSession({
-        ...session,
-        fullName: profile.name,
-        email: profile.email,
-        roleName: selectedRole,
-        permissions,
-        userId: `worker-${selectedRole.toLowerCase()}-01`,
-      });
-      router.push('/dashboard');
+      setLoginError(err?.message || 'Unable to connect. Please check your internet connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -194,41 +149,6 @@ export default function LoginPage() {
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
         <div className="card p-8 rounded-card space-y-6">
-          {/* Quick Role Tester Bar */}
-          <div className="p-3 bg-surfaceMuted rounded-xl border border-borderLight">
-            <span className="text-[11px] font-semibold text-muted uppercase tracking-wider block mb-2">
-              Staff Role Quick-Fill
-            </span>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs">
-              {(
-                [
-                  'OWNER',
-                  'RESTAURANT_ADMIN',
-                  'MANAGER',
-                  'CASHIER',
-                  'WAITER',
-                  'KITCHEN',
-                  'ACCOUNTANT',
-                ] as const
-              ).map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => handleRoleSelect(r)}
-                  className={`py-1.5 px-2 rounded-lg font-medium transition text-center text-[11px] truncate ${
-                    selectedRole === r
-                      ? 'bg-primary text-white font-semibold'
-                      : 'bg-surface text-secondary border border-border hover:bg-surfaceMuted'
-                  }`}
-                >
-                  {r === 'RESTAURANT_ADMIN'
-                    ? 'Admin'
-                    : r.charAt(0) + r.slice(1).toLowerCase()}
-                </button>
-              ))}
-            </div>
-          </div>
-
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-[13px] font-medium text-secondary mb-1.5">

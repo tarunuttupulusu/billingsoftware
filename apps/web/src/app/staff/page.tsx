@@ -46,63 +46,12 @@ export default function StaffAndSecurityPage() {
     'orders.create',
   ]);
 
-  const [customRoles, setCustomRoles] = useState<CustomRole[]>([
-    {
-      id: 'role-senior-waiter',
-      name: 'Senior Waiter',
-      description: 'Front-of-house order taker with table transfer and discount approval',
-      modules: ['pos', 'tables', 'orders', 'menu', 'customers'],
-      permissions: ['pos.*', 'tables.*', 'orders.*', 'menu.view', 'customers.view', 'billing.split'],
-      userCount: 3,
-    },
-    {
-      id: 'role-floor-manager',
-      name: 'Floor Manager',
-      description: 'Oversees dining room flow, seating reservations, and staff shifts',
-      modules: ['dashboard', 'pos', 'tables', 'orders', 'kitchen', 'customers', 'reports'],
-      permissions: ['dashboard.view', 'pos.*', 'tables.*', 'orders.*', 'kitchen.view', 'customers.*', 'reports.sales'],
-      userCount: 2,
-    },
-    {
-      id: 'role-kitchen-manager',
-      name: 'Kitchen Manager',
-      description: 'Expedites tickets, assigns cooking stations, and manages 86 menu items',
-      modules: ['kitchen', 'orders', 'menu', 'inventory'],
-      permissions: ['kitchen.*', 'orders.view', 'orders.details', 'menu.availability', 'inventory.view'],
-      userCount: 1,
-    },
-    {
-      id: 'role-billing-manager',
-      name: 'Billing Manager',
-      description: 'Handles high-value cashier settlements, refunds, and daily reports',
-      modules: ['dashboard', 'billing', 'payments', 'reports', 'customers'],
-      permissions: ['dashboard.view', 'billing.*', 'payments.*', 'reports.*', 'customers.view'],
-      userCount: 1,
-    },
-  ]);
+  const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
 
-  const staffList = [
-    { id: 'u1', name: 'Rajesh Kumar', email: 'rajesh@spicegarden.com', role: 'Owner', status: 'Active', phone: '+91 98765 43210' },
-    { id: 'u2', name: 'Vikram Sharma', email: 'vikram@spicegarden.com', role: 'Manager', status: 'Active', phone: '+91 98765 11111' },
-    { id: 'u3', name: 'Ramesh Patel', email: 'ramesh@spicegarden.com', role: 'Senior Waiter', status: 'Active', phone: '+91 98765 22222' },
-    { id: 'u4', name: 'Priya Nair', email: 'priya@spicegarden.com', role: 'Cashier', status: 'Active', phone: '+91 98765 33333' },
-    { id: 'u5', name: 'Chef Anand', email: 'anand@spicegarden.com', role: 'Kitchen', status: 'Active', phone: '+91 98765 44444' },
-  ];
-
-  const workerActivities = [
-    { worker: 'Ramesh (Senior Waiter)', action: 'Merged Table 3 with Table 4', table: 'Table 3 & 4', device: 'Android Phone (DEV-RAM-01)', time: '9:12 PM' },
-    { worker: 'Ramesh (Senior Waiter)', action: 'Sent KOT to Grill Station', table: 'Table 5', device: 'Android Phone (DEV-RAM-01)', time: '9:08 PM' },
-    { worker: 'Vikram (Manager)', action: 'Approved 10% Loyalty Discount', table: 'Table 2', device: 'iPad Terminal', time: '8:55 PM' },
-    { worker: 'Priya (Cashier)', action: 'Settled Bill #INV-1039 (₹1,560 Cash)', table: 'Table 3', device: 'POS Counter 01', time: '8:45 PM' },
-    { worker: 'Chef Anand (Kitchen)', action: 'Marked KOT #42 READY for Table 2', table: 'Table 2', device: 'Kitchen Touch Display', time: '8:30 PM' },
-  ];
-
-  const devices = [
-    { name: 'POS Counter Terminal 01', type: 'Desktop POS', user: 'Priya (Cashier)', platform: 'Windows / Web', status: 'Online', lastActive: 'Just now' },
-    { name: 'Server Android Tablet', type: 'Tablet', user: 'Ramesh (Senior Waiter)', platform: 'Android 14', status: 'Online', lastActive: '2m ago' },
-    { name: 'Manager iPad Air', type: 'Tablet', user: 'Vikram (Manager)', platform: 'iPadOS', status: 'Online', lastActive: '5m ago' },
-    { name: 'Kitchen Touch KDS', type: 'KDS Terminal', user: 'Chef Anand', platform: 'ChromeOS', status: 'Online', lastActive: 'Just now' },
-  ];
+  // Staff, activities, and devices start empty — added by the restaurant owner
+  const [staffList, setStaffList] = useState<Array<{ id: string; name: string; email: string; role: string; status: string; phone: string }>>([]);
+  const workerActivities: Array<{ worker: string; action: string; table: string; device: string; time: string }> = [];
+  const devices: Array<{ name: string; type: string; user: string; platform: string; status: string; lastActive: string }> = [];
 
   const allAvailableModules = [
     { id: 'dashboard', name: 'Dashboard' },
@@ -222,139 +171,173 @@ export default function StaffAndSecurityPage() {
         </div>
         <div className="stat-card">
           <div className="text-[14px] text-secondary font-medium">Audit Logs Recorded</div>
-          <div className="text-[28px] font-semibold text-heading mt-2 leading-none">1,420</div>
+          <div className="text-[28px] font-semibold text-heading mt-2 leading-none">{workerActivities.length}</div>
         </div>
       </div>
 
       {/* Directory Tab */}
       {activeTab === 'DIRECTORY' && (
         <div className="card p-0 overflow-hidden">
-          <table className="w-full text-left text-[14px]">
-            <thead className="bg-surfaceMuted text-muted text-xs font-semibold uppercase tracking-wider border-b border-border">
-              <tr>
-                <th className="px-6 py-3.5">Name</th>
-                <th className="px-6 py-3.5">Assigned Role</th>
-                <th className="px-6 py-3.5">Contact</th>
-                <th className="px-6 py-3.5">Status</th>
-                <th className="px-6 py-3.5 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-borderLight">
-              {staffList.map((s) => (
-                <tr key={s.id} className="hover:bg-surfaceMuted/50 transition">
-                  <td className="px-6 py-4">
-                    <div className="font-semibold text-heading">{s.name}</div>
-                    <div className="text-xs text-muted">{s.email}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-light text-primary">
-                      {s.role}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-secondary text-xs">{s.phone}</td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-success-bg text-success">
-                      {s.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button className="text-primary hover:underline text-xs font-semibold">Edit Permissions</button>
-                  </td>
+          {staffList.length > 0 ? (
+            <table className="w-full text-left text-[14px]">
+              <thead className="bg-surfaceMuted text-muted text-xs font-semibold uppercase tracking-wider border-b border-border">
+                <tr>
+                  <th className="px-6 py-3.5">Name</th>
+                  <th className="px-6 py-3.5">Assigned Role</th>
+                  <th className="px-6 py-3.5">Contact</th>
+                  <th className="px-6 py-3.5">Status</th>
+                  <th className="px-6 py-3.5 text-right">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-borderLight">
+                {staffList.map((s) => (
+                  <tr key={s.id} className="hover:bg-surfaceMuted/50 transition">
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-heading">{s.name}</div>
+                      <div className="text-xs text-muted">{s.email}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-light text-primary">
+                        {s.role}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-secondary text-xs">{s.phone}</td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-success-bg text-success">
+                        {s.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button className="text-primary hover:underline text-xs font-semibold">Edit Permissions</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="p-12 text-center space-y-3">
+              <Users className="w-10 h-10 text-placeholder mx-auto" />
+              <p className="text-sm text-secondary">No staff members added yet.</p>
+              <p className="text-xs text-muted">Click "Add Staff Member" to invite your team.</p>
+            </div>
+          )}
         </div>
       )}
 
       {/* Custom Roles & RBAC Tab */}
       {activeTab === 'ROLES' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {customRoles.map((role) => (
-              <div key={role.id} className="card p-5 space-y-3 border-border hover:border-primary/40 transition">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-base font-semibold text-heading">{role.name}</h3>
-                    <p className="text-xs text-secondary mt-0.5">{role.description}</p>
+          {customRoles.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {customRoles.map((role) => (
+                <div key={role.id} className="card p-5 space-y-3 border-border hover:border-primary/40 transition">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-semibold text-heading">{role.name}</h3>
+                      <p className="text-xs text-secondary mt-0.5">{role.description}</p>
+                    </div>
+                    <span className="text-xs font-bold text-primary bg-primary-light px-2.5 py-0.5 rounded-full">
+                      {role.userCount} assigned
+                    </span>
                   </div>
-                  <span className="text-xs font-bold text-primary bg-primary-light px-2.5 py-0.5 rounded-full">
-                    {role.userCount} assigned
-                  </span>
-                </div>
 
-                <div className="pt-2 border-t border-borderLight">
-                  <span className="text-[11px] font-semibold text-muted uppercase tracking-wider block mb-1.5">
-                    Authorized Modules ({role.modules.length})
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {role.modules.map((m) => (
-                      <span key={m} className="px-2 py-0.5 rounded bg-surfaceMuted text-heading text-[11px] font-medium border border-borderLight capitalize">
-                        {m}
-                      </span>
-                    ))}
+                  <div className="pt-2 border-t border-borderLight">
+                    <span className="text-[11px] font-semibold text-muted uppercase tracking-wider block mb-1.5">
+                      Authorized Modules ({role.modules.length})
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {role.modules.map((m) => (
+                        <span key={m} className="px-2 py-0.5 rounded bg-surfaceMuted text-heading text-[11px] font-medium border border-borderLight capitalize">
+                          {m}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-between text-xs">
+                    <span className="text-muted">{role.permissions.length} granular permissions</span>
+                    <button
+                      onClick={() => {
+                        setSession({
+                          ...session,
+                          roleName: role.name.toUpperCase().replace(/\s+/g, '_'),
+                          permissions: role.permissions,
+                        });
+                      }}
+                      className="text-primary hover:underline font-semibold"
+                    >
+                      Test This Role
+                    </button>
                   </div>
                 </div>
-
-                <div className="pt-2 flex items-center justify-between text-xs">
-                  <span className="text-muted">{role.permissions.length} granular permissions</span>
-                  <button
-                    onClick={() => {
-                      setSession({
-                        ...session,
-                        roleName: role.name.toUpperCase().replace(/\s+/g, '_'),
-                        permissions: role.permissions,
-                      });
-                    }}
-                    className="text-primary hover:underline font-semibold"
-                  >
-                    Test This Role
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="card p-12 text-center space-y-3">
+              <Shield className="w-10 h-10 text-placeholder mx-auto" />
+              <p className="text-sm text-secondary">No custom roles defined yet.</p>
+              <p className="text-xs text-muted">Click "Create Custom Role" to define granular access permissions for your team.</p>
+            </div>
+          )}
         </div>
       )}
 
       {/* Activity Tab */}
       {activeTab === 'ACTIVITY' && (
         <div className="card p-0 overflow-hidden">
-          <div className="divide-y divide-borderLight">
-            {workerActivities.map((act, idx) => (
-              <div key={idx} className="p-4 flex items-center justify-between hover:bg-surfaceMuted transition">
-                <div>
-                  <div className="font-semibold text-sm text-heading">{act.worker}</div>
-                  <div className="text-xs text-secondary mt-0.5">{act.action} on <strong className="text-heading">{act.table}</strong></div>
-                  <div className="text-[11px] text-muted mt-0.5">{act.device}</div>
+          {workerActivities.length > 0 ? (
+            <div className="divide-y divide-borderLight">
+              {workerActivities.map((act, idx) => (
+                <div key={idx} className="p-4 flex items-center justify-between hover:bg-surfaceMuted transition">
+                  <div>
+                    <div className="font-semibold text-sm text-heading">{act.worker}</div>
+                    <div className="text-xs text-secondary mt-0.5">{act.action} on <strong className="text-heading">{act.table}</strong></div>
+                    <div className="text-[11px] text-muted mt-0.5">{act.device}</div>
+                  </div>
+                  <span className="text-xs text-muted font-medium">{act.time}</span>
                 </div>
-                <span className="text-xs text-muted font-medium">{act.time}</span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-12 text-center space-y-3">
+              <Clock className="w-10 h-10 text-placeholder mx-auto" />
+              <p className="text-sm text-secondary">No audit trail events yet.</p>
+              <p className="text-xs text-muted">Staff actions will appear here once they begin working in the system.</p>
+            </div>
+          )}
         </div>
       )}
 
       {/* Devices Tab */}
       {activeTab === 'DEVICES' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {devices.map((d, idx) => (
-            <div key={idx} className="card flex flex-col justify-between space-y-3">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-semibold text-sm text-heading">{d.name}</h3>
-                  <span className="text-xs text-muted">{d.type} • {d.platform}</span>
+        <div>
+          {devices.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {devices.map((d, idx) => (
+                <div key={idx} className="card flex flex-col justify-between space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-semibold text-sm text-heading">{d.name}</h3>
+                      <span className="text-xs text-muted">{d.type} • {d.platform}</span>
+                    </div>
+                    <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-success-bg text-success">
+                      {d.status}
+                    </span>
+                  </div>
+                  <div className="pt-3 border-t border-borderLight flex justify-between items-center text-xs text-secondary">
+                    <span>Active User: <strong className="text-heading">{d.user}</strong></span>
+                    <span className="text-muted">{d.lastActive}</span>
+                  </div>
                 </div>
-                <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-success-bg text-success">
-                  {d.status}
-                </span>
-              </div>
-              <div className="pt-3 border-t border-borderLight flex justify-between items-center text-xs text-secondary">
-                <span>Active User: <strong className="text-heading">{d.user}</strong></span>
-                <span className="text-muted">{d.lastActive}</span>
-              </div>
+              ))}
             </div>
-          ))}
+          ) : (
+            <div className="card p-12 text-center space-y-3">
+              <Smartphone className="w-10 h-10 text-placeholder mx-auto" />
+              <p className="text-sm text-secondary">No registered terminals yet.</p>
+              <p className="text-xs text-muted">POS terminals, tablets, and KDS devices will appear here after first login.</p>
+            </div>
+          )}
         </div>
       )}
 

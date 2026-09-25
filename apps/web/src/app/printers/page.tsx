@@ -29,12 +29,9 @@ export default function PrintersAndDevicesSectionPage() {
     setTimeout(() => setTestResult(null), 3000);
   };
 
-  const printerList = [
-    { name: 'Front Cashier Thermal (EPSON TM-T82X)', type: 'Thermal Receipt (80mm)', interface: 'USB / ESC-POS', location: 'Main Billing Counter', status: 'Online' },
-    { name: 'Kitchen KOT Hot Line (TVS RP-3160)', type: 'KOT Thermal (58mm)', interface: 'Ethernet IP: 192.168.1.120', location: 'Main Hot Line & Curry', status: 'Online' },
-    { name: 'Tandoor & Grill Station Printer', type: 'KOT Thermal (58mm)', interface: 'Ethernet IP: 192.168.1.121', location: 'Outdoor Tandoor Station', status: 'Online' },
-    { name: 'Bar & Mocktail Thermal Printer', type: 'Receipt (80mm)', interface: 'Bluetooth / BLE', location: 'Bar Counter', status: 'Standby' },
-  ];
+  const [printerList, setPrinterList] = useState<Array<{
+    name: string; type: string; interface: string; location: string; status: string;
+  }>>([]);
 
   return (
     <div className="p-8 sm:p-10 max-w-[1400px] mx-auto space-y-8 font-sans">
@@ -65,19 +62,19 @@ export default function PrintersAndDevicesSectionPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="stat-card">
           <div className="text-[14px] text-secondary font-medium">Configured Printers</div>
-          <div className="text-[28px] font-semibold text-heading mt-2 leading-none">4</div>
+          <div className="text-[28px] font-semibold text-heading mt-2 leading-none">{printerList.length}</div>
         </div>
         <div className="stat-card">
           <div className="text-[14px] text-secondary font-medium">Online & Ready</div>
-          <div className="text-[28px] font-semibold text-success mt-2 leading-none">3</div>
+          <div className="text-[28px] font-semibold text-success mt-2 leading-none">{printerList.filter((p) => p.status === 'Online').length}</div>
         </div>
         <div className="stat-card">
           <div className="text-[14px] text-secondary font-medium">Paper Status</div>
-          <div className="text-[28px] font-semibold text-info mt-2 leading-none">Adequate</div>
+          <div className="text-[28px] font-semibold text-info mt-2 leading-none">{printerList.length > 0 ? 'Adequate' : '—'}</div>
         </div>
         <div className="stat-card">
           <div className="text-[14px] text-secondary font-medium">Total Print Jobs Today</div>
-          <div className="text-[28px] font-semibold text-heading mt-2 leading-none">184</div>
+          <div className="text-[28px] font-semibold text-heading mt-2 leading-none">0</div>
         </div>
       </div>
 
@@ -98,52 +95,62 @@ export default function PrintersAndDevicesSectionPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {printerList.map((p, idx) => (
-          <div key={idx} className="card space-y-4 flex flex-col justify-between">
-            <div>
-              <div className="flex justify-between items-start">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary-soft text-primary flex items-center justify-center">
-                    <Printer className="w-5 h-5 stroke-[1.8]" />
+      {printerList.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {printerList.map((p, idx) => (
+            <div key={idx} className="card space-y-4 flex flex-col justify-between">
+              <div>
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary-soft text-primary flex items-center justify-center">
+                      <Printer className="w-5 h-5 stroke-[1.8]" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-sm text-heading">{p.name}</h3>
+                      <span className="text-xs text-muted">{p.type}</span>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-sm text-heading">{p.name}</h3>
-                    <span className="text-xs text-muted">{p.type}</span>
+                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                    p.status === 'Online' ? 'bg-success-bg text-success' : 'bg-surfaceMuted text-muted'
+                  }`}>
+                    {p.status}
+                  </span>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-borderLight space-y-1.5 text-xs text-secondary">
+                  <div className="flex justify-between">
+                    <span className="text-muted">Port / Protocol:</span>
+                    <span className="font-mono text-heading">{p.interface}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted">Routing Station:</span>
+                    <span className="text-heading font-medium">{p.location}</span>
                   </div>
                 </div>
-                <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-success-bg text-success">
-                  {p.status}
-                </span>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-borderLight space-y-1.5 text-xs text-secondary">
-                <div className="flex justify-between">
-                  <span className="text-muted">Port / Protocol:</span>
-                  <span className="font-mono text-heading">{p.interface}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted">Routing Station:</span>
-                  <span className="text-heading font-medium">{p.location}</span>
-                </div>
+              <div className="pt-3 border-t border-borderLight flex justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => handleTestPrint(p.name)}
+                  className="btn-secondary text-xs py-1.5 px-3"
+                >
+                  <span>Test Print</span>
+                </button>
+                <button className="btn-secondary text-xs py-1.5 px-3">
+                  <span>Configure</span>
+                </button>
               </div>
             </div>
-
-            <div className="pt-3 border-t border-borderLight flex justify-end space-x-2">
-              <button
-                type="button"
-                onClick={() => handleTestPrint(p.name)}
-                className="btn-secondary text-xs py-1.5 px-3"
-              >
-                <span>Test Print</span>
-              </button>
-              <button className="btn-secondary text-xs py-1.5 px-3">
-                <span>Configure</span>
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="card p-12 text-center space-y-3">
+          <Printer className="w-10 h-10 text-placeholder mx-auto" />
+          <p className="text-sm text-secondary">No printers configured yet.</p>
+          <p className="text-xs text-muted">Click "Add Printer" to register your POS receipt printer, KOT printer, or network device.</p>
+        </div>
+      )}
     </div>
   );
 }

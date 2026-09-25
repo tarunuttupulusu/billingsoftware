@@ -32,78 +32,30 @@ interface OrderRecord {
 }
 
 export default function OrdersManagementPage() {
-  const { profile } = useApp();
+  const { profile, activeOrders } = useApp();
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
-  const [activeOrderModal, setActiveOrderModal] = useState<OrderRecord | null>(null);
+  const [activeOrderModal, setActiveOrderModal] = useState<any | null>(null);
 
-  const mockOrders: OrderRecord[] = [
-    {
-      id: 'o1',
-      orderNumber: 'ORD-1234',
-      tableNumber: 'Table 5',
-      orderType: 'Dine-In',
-      workerName: 'Ramesh (Waiter)',
-      status: 'PREPARING',
-      itemsCount: 3,
-      total: 56000,
-      timeAgo: '4 mins ago',
-      items: [
-        { name: 'Chicken Biryani', qty: 2, price: 25000 },
-        { name: 'Coke 300ml', qty: 1, price: 4000 },
-        { name: 'Mineral Water', qty: 1, price: 2000 },
-      ],
-    },
-    {
-      id: 'o2',
-      orderNumber: 'ORD-1233',
-      tableNumber: 'Table 2',
-      orderType: 'Dine-In',
-      workerName: 'Rohan (Waiter)',
-      status: 'SERVED',
-      itemsCount: 5,
-      total: 89000,
-      timeAgo: '18 mins ago',
-      items: [
-        { name: 'Paneer Butter Masala', qty: 1, price: 28000 },
-        { name: 'Garlic Naan', qty: 4, price: 24000 },
-        { name: 'Dal Makhani', qty: 1, price: 22000 },
-        { name: 'Jeera Rice', qty: 1, price: 15000 },
-      ],
-    },
-    {
-      id: 'o3',
-      orderNumber: 'ORD-1232',
-      tableNumber: 'Counter 1',
-      orderType: 'Takeaway',
-      workerName: 'Priya (Cashier)',
-      status: 'COMPLETED',
-      itemsCount: 2,
-      total: 34000,
-      timeAgo: '32 mins ago',
-      items: [
-        { name: 'Veg Dum Biryani', qty: 1, price: 22000 },
-        { name: 'Gulab Jamun (2 pcs)', qty: 1, price: 12000 },
-      ],
-    },
-    {
-      id: 'o4',
-      orderNumber: 'ORD-1231',
-      tableNumber: 'Table 8',
-      orderType: 'Dine-In',
-      workerName: 'Ramesh (Waiter)',
-      status: 'CANCELLED',
-      itemsCount: 1,
-      total: 22000,
-      timeAgo: '1 hour ago',
-      items: [
-        { name: 'Crispy Corn Salt & Pepper', qty: 1, price: 22000 },
-      ],
-    },
-  ];
+  const ordersList = activeOrders.map((o) => ({
+    id: o.id,
+    orderNumber: `ORD-${o.id.substring(0, 6).toUpperCase()}`,
+    tableNumber: o.tableId ? `Table ${o.tableId.substring(0, 4)}` : 'Counter',
+    orderType: o.tableId ? 'Dine-In' : 'Takeaway',
+    workerName: o.workerId || 'Cashier',
+    status: o.status,
+    itemsCount: o.items?.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0) || 0,
+    total: o.finalTotal || o.subtotal || 0,
+    timeAgo: new Date(o.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    items: o.items || [],
+  }));
 
-  const filtered = mockOrders.filter(
+  const filtered = ordersList.filter(
     (o) => selectedStatus === 'ALL' || o.status === selectedStatus
   );
+
+  const activeCount = ordersList.filter((o) => o.status === 'PREPARING' || o.status === 'PLACED' || o.status === 'SERVED').length;
+  const completedCount = ordersList.filter((o) => o.status === 'COMPLETED').length;
+  const cancelledCount = ordersList.filter((o) => o.status === 'CANCELLED').length;
 
   return (
     <div className="p-8 sm:p-10 max-w-[1400px] mx-auto space-y-8 font-sans">
@@ -120,7 +72,7 @@ export default function OrdersManagementPage() {
 
         {/* Status Filter */}
         <div className="flex items-center space-x-1.5 overflow-x-auto bg-surface border border-border p-1 rounded-xl">
-          {['ALL', 'PREPARING', 'SERVED', 'COMPLETED', 'CANCELLED'].map((st) => (
+          {['ALL', 'PLACED', 'PREPARING', 'SERVED', 'COMPLETED', 'CANCELLED'].map((st) => (
             <button
               key={st}
               onClick={() => setSelectedStatus(st)}
@@ -140,82 +92,90 @@ export default function OrdersManagementPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="stat-card">
           <div className="text-[14px] text-secondary font-medium">Total Orders Today</div>
-          <div className="text-[28px] font-semibold text-heading mt-2 leading-none">{mockOrders.length}</div>
+          <div className="text-[28px] font-semibold text-heading mt-2 leading-none">{ordersList.length}</div>
         </div>
         <div className="stat-card">
           <div className="text-[14px] text-secondary font-medium">Active (Kitchen/Floor)</div>
-          <div className="text-[28px] font-semibold text-primary mt-2 leading-none">2</div>
+          <div className="text-[28px] font-semibold text-primary mt-2 leading-none">{activeCount}</div>
         </div>
         <div className="stat-card">
           <div className="text-[14px] text-secondary font-medium">Completed Bills</div>
-          <div className="text-[28px] font-semibold text-success mt-2 leading-none">1</div>
+          <div className="text-[28px] font-semibold text-success mt-2 leading-none">{completedCount}</div>
         </div>
         <div className="stat-card">
           <div className="text-[14px] text-secondary font-medium">Cancelled</div>
-          <div className="text-[28px] font-semibold text-danger mt-2 leading-none">1</div>
+          <div className="text-[28px] font-semibold text-danger mt-2 leading-none">{cancelledCount}</div>
         </div>
       </div>
 
       {/* Orders Table */}
       <div className="card p-0 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-[14px]">
-            <thead className="bg-surfaceMuted text-muted text-xs font-semibold uppercase tracking-wider border-b border-border">
-              <tr>
-                <th className="px-6 py-3.5">Order ID</th>
-                <th className="px-6 py-3.5">Table / Mode</th>
-                <th className="px-6 py-3.5">Server</th>
-                <th className="px-6 py-3.5">Items</th>
-                <th className="px-6 py-3.5">Total</th>
-                <th className="px-6 py-3.5">Status</th>
-                <th className="px-6 py-3.5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-borderLight">
-              {filtered.map((order) => (
-                <tr key={order.id} className="hover:bg-surfaceMuted/50 transition">
-                  <td className="px-6 py-4 font-mono font-semibold text-heading">
-                    {order.orderNumber}
-                    <div className="text-xs text-muted font-normal font-sans">{order.timeAgo}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="font-semibold text-heading">{order.tableNumber}</span>
-                    <span className="block text-xs text-muted">{order.orderType}</span>
-                  </td>
-                  <td className="px-6 py-4 text-secondary text-xs">{order.workerName}</td>
-                  <td className="px-6 py-4 text-secondary text-xs">{order.itemsCount} items</td>
-                  <td className="px-6 py-4 font-semibold text-heading">
-                    {profile.currencySymbol} {(order.total / 100).toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
-                        order.status === 'PREPARING'
-                          ? 'bg-warning-bg text-warning'
-                          : order.status === 'SERVED'
-                          ? 'bg-info-bg text-info'
-                          : order.status === 'COMPLETED'
-                          ? 'bg-success-bg text-success'
-                          : 'bg-danger-bg text-danger'
-                      }`}
-                    >
-                      {order.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => setActiveOrderModal(order)}
-                      className="btn-secondary text-xs py-1.5 px-3"
-                    >
-                      <Eye className="w-3.5 h-3.5 text-placeholder" />
-                      <span>Details</span>
-                    </button>
-                  </td>
+        {filtered.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-[14px]">
+              <thead className="bg-surfaceMuted text-muted text-xs font-semibold uppercase tracking-wider border-b border-border">
+                <tr>
+                  <th className="px-6 py-3.5">Order ID</th>
+                  <th className="px-6 py-3.5">Table / Mode</th>
+                  <th className="px-6 py-3.5">Server</th>
+                  <th className="px-6 py-3.5">Items</th>
+                  <th className="px-6 py-3.5">Total</th>
+                  <th className="px-6 py-3.5">Status</th>
+                  <th className="px-6 py-3.5 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-borderLight">
+                {filtered.map((order) => (
+                  <tr key={order.id} className="hover:bg-surfaceMuted/50 transition">
+                    <td className="px-6 py-4 font-mono font-semibold text-heading">
+                      {order.orderNumber}
+                      <div className="text-xs text-muted font-normal font-sans">{order.timeAgo}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="font-semibold text-heading">{order.tableNumber}</span>
+                      <span className="block text-xs text-muted">{order.orderType}</span>
+                    </td>
+                    <td className="px-6 py-4 text-secondary text-xs">{order.workerName}</td>
+                    <td className="px-6 py-4 text-secondary text-xs">{order.itemsCount} items</td>
+                    <td className="px-6 py-4 font-semibold text-heading">
+                      {profile.currencySymbol} {(order.total / 100).toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
+                          order.status === 'PREPARING'
+                            ? 'bg-warning-bg text-warning'
+                            : order.status === 'SERVED'
+                            ? 'bg-info-bg text-info'
+                            : order.status === 'COMPLETED'
+                            ? 'bg-success-bg text-success'
+                            : 'bg-danger-bg text-danger'
+                        }`}
+                      >
+                        {order.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => setActiveOrderModal(order)}
+                        className="btn-secondary text-xs py-1.5 px-3"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-placeholder" />
+                        <span>Details</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-12 text-center space-y-3">
+            <ClipboardList className="w-10 h-10 text-placeholder mx-auto" />
+            <p className="text-sm text-secondary">No orders recorded for this session yet.</p>
+            <p className="text-xs text-muted">Create orders from the POS terminal to see live tracking here.</p>
+          </div>
+        )}
       </div>
 
       {/* Modal */}
@@ -233,13 +193,13 @@ export default function OrdersManagementPage() {
             </div>
 
             <div className="divide-y divide-borderLight text-xs py-2">
-              {activeOrderModal.items.map((item, idx) => (
+              {activeOrderModal.items.map((item: any, idx: number) => (
                 <div key={idx} className="py-2.5 flex justify-between items-center">
                   <div>
-                    <span className="font-semibold text-heading">{item.qty}x {item.name}</span>
+                    <span className="font-semibold text-heading">{item.quantity || item.qty}x {item.itemName || item.name}</span>
                   </div>
                   <span className="font-semibold text-heading">
-                    {profile.currencySymbol} {(item.price * item.qty / 100).toFixed(2)}
+                    {profile.currencySymbol} {(((item.unitPrice || item.price || 0) * (item.quantity || item.qty || 1)) / 100).toFixed(2)}
                   </span>
                 </div>
               ))}
